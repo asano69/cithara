@@ -4,8 +4,8 @@ package serve
 
 import (
 	"fmt"
-	"github.com/asano69/myapp/internal/assets"
-	"github.com/asano69/myapp/internal/config"
+	"github.com/asano69/kithara/internal/assets"
+	"github.com/asano69/kithara/internal/config"
 	"io/fs"
 	"net/http"
 

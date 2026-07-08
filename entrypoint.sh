@@ -6,4 +6,4 @@ if [ -d "/certs" ] && [ "$(ls -A /certs/*.crt 2>/dev/null)" ]; then
   update-ca-certificates
 fi
 
-exec su-exec myapp:myapp "$@"
+exec su-exec kithara:kithara "$@"

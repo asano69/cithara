@@ -6,7 +6,7 @@ set -euo pipefail
 # settings
 ########################################
 
-VERSION_FILE="cmd/myapp/main.go"
+VERSION_FILE="cmd/kithara/main.go"
 REMOTE="origin"
 BRANCH="main"
 COMMIT_PREFIX="release:"

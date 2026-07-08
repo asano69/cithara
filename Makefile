@@ -1,4 +1,4 @@
-BINARY := myapp
+BINARY := kithara
 
 .PHONY: frontend-deps
 frontend-deps:
@@ -20,7 +20,7 @@ kill-ports:
 
 .PHONY: server
 server: kill-ports build
-	#./myapp migrate up --dir=pb_data
+	#./kithara migrate up --dir=pb_data
 	./$(BINARY) superuser upsert admin@mail.internal password --dir=pb_data
 	./$(BINARY) serve
 
@@ -45,7 +45,7 @@ test:
 
 
 migrate-collections:
-	go run ./cmd/myapp migrate collections
+	go run ./cmd/kithara migrate collections
 
 
 

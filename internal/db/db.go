@@ -4,8 +4,8 @@
 package db
 
 import (
-	"github.com/asano69/myapp/internal/errs"
-	_ "github.com/asano69/myapp/migrations"
+	"github.com/asano69/kithara/internal/errs"
+	_ "github.com/asano69/kithara/migrations"
 
 	"github.com/pocketbase/pocketbase"
 
@@ -17,10 +17,10 @@ type Database struct{ app *pocketbase.PocketBase }
 // OpenScratch creates a Database backed by a fresh, disposable PocketBase
 // instance in its own temporary directory. Each call returns an
 // independent, empty database with no effect on any other Database.
-// PocketBase always needs a directory on disk, so this is myapp'
+// PocketBase always needs a directory on disk, so this is kithara'
 // equivalent of SQLite's ":memory:" mode.
 func OpenScratch() (*Database, error) {
-	dir, err := os.MkdirTemp("", "myapp-pocketbase-*")
+	dir, err := os.MkdirTemp("", "kithara-pocketbase-*")
 	if err != nil {
 		return nil, errs.Newf("create temporary PocketBase data directory: %v", err)
 	}
@@ -32,9 +32,9 @@ func OpenScratch() (*Database, error) {
 }
 
 // New wraps an already-bootstrapped PocketBase app and ensures the
-// myapp schema exists in it. app is expected to be the single instance
-// shared by the whole CLI (see cmd/myapp/main.go); its data directory is
-// controlled by PocketBase's standard "--dir" flag, not by myapp itself.
+// kithara schema exists in it. app is expected to be the single instance
+// shared by the whole CLI (see cmd/kithara/main.go); its data directory is
+// controlled by PocketBase's standard "--dir" flag, not by kithara itself.
 func New(app *pocketbase.PocketBase) (*Database, error) {
 	return newDatabase(app)
 }

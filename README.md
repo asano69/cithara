@@ -1,6 +1,6 @@
-# myapp
+# kithara
 
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/asano69/myapp)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/asano69/kithara)
 
 ## Introduction 
 
@@ -15,3 +15,8 @@
 - [SolidJS](https://github.com/solidjs/solid)
 - [PocketBase](https://github.com/pocketbase/pocketbase)
 
+---
+
+=> https://github.com/teambition/rrule-go  
+=> https://github.com/jkbrzt/rrule  
+=> https://github.com/dcantatore/react-rrule-builder-ts  
