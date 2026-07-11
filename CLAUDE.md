@@ -13,3 +13,6 @@
 - Module files should re-export what's needed, hide implementation details.
 - Don't persist changes to the database during drilling. Use the cache.
 - Don't use timezones: dates are naive for a reason. Due dates etc. are more like the dates in a journal entry than precise points in time.
+
+## Work in Progress
+- reactのrrlueビルダをSolid.js用に。移植しようとしている。規模が大きいので段階的に進めていきましょう。
