@@ -1,0 +1,302 @@
+import React, { createContext, useContext, useRef } from "react";
+import { createStore, useStore } from "zustand";
+import * as Yup from "yup";
+import { Frequency, RRule } from "rrule";
+import isNil from "lodash/isNil";
+
+import { MuiPickersAdapter } from "@mui/x-date-pickers";
+import { DateTime } from "luxon";
+import {
+  AllRepeatDetails, MonthBy, Weekday, YearlyBy,
+} from "../components/Repeat/Repeat.types";
+import getValidationSchema from "../validation/validationSchema";
+import { EndDetails, EndType } from "../components/End/End.types";
+import { buildRRuleString } from "../utils/buildRRuleString";
+
+interface BuilderState<TDate extends DateTime<boolean>> {
+  repeatDetails: AllRepeatDetails;
+  frequency: Frequency;
+  startDate: TDate | null;
+  dateAdapter?: MuiPickersAdapter<TDate>;
+  validationErrors: Record<string, string>;
+  endDetails: EndDetails<TDate>;
+  RRuleString?: string;
+  radioValue: MonthBy | YearlyBy | null,
+  minEndDate?: TDate;
+}
+
+interface BuilderActions<TDate extends DateTime<boolean>> {
+  validationErrors: Record<string, string>;
+  setAdapter: (dateAdapter: MuiPickersAdapter<TDate>) => void;
+  setFrequency: (frequency: Frequency) => void;
+  setRepeatDetails: (details: AllRepeatDetails) => void;
+  validateForm: () => Promise<boolean>;
+  setEndDetails: (details: EndDetails<TDate>) => void;
+  setStartDate: (startDate: TDate | null) => void;
+  buildRRuleString: () => void;
+  onChange?: (rruleString: string) => void;
+  setOnChange: (onChange: (rruleString: string) => void) => void;
+  setStoreFromRRuleString: (rruleString: string) => void;
+  setRadioValue: (radioValue: MonthBy | YearlyBy | null) => void;
+}
+
+export const baseRepeatDetails: AllRepeatDetails = {
+  interval: 1,
+  bySetPos: [],
+  byMonth: [],
+  byMonthDay: [],
+  byDay: [],
+};
+
+const initialState: BuilderState<DateTime> = {
+  repeatDetails: baseRepeatDetails,
+  frequency: Frequency.WEEKLY,
+  startDate: null,
+  validationErrors: {},
+  endDetails: { endingType: EndType.NEVER },
+  radioValue: null,
+};
+
+type BuilderStoreState = BuilderState<DateTime> & BuilderActions<DateTime>;
+type BuilderStoreInstance = ReturnType<typeof createBuilderStore>;
+
+const createBuilderStore = () => createStore<BuilderStoreState>((set, get) => ({
+  ...initialState,
+  validationErrors: {},
+  setRadioValue: (radioValue) => set({ radioValue }),
+  setFrequency: (frequency) => {
+    set({
+      frequency,
+      repeatDetails: { ...baseRepeatDetails },
+      validationErrors: {},
+    });
+    get().buildRRuleString();
+  },
+  setStartDate: (startDate) => {
+    const currentEndDetails = get().endDetails;
+    const { dateAdapter } = get();
+    if (!dateAdapter) {
+      return;
+    }
+
+    let minEndDate = get().minEndDate;
+    let endDetails = currentEndDetails;
+
+    if (startDate) {
+      minEndDate = dateAdapter.addDays(startDate, 1);
+    }
+
+    // Adjust the end date if the start date is on or after it
+    if (currentEndDetails.endingType === EndType.ON
+      && currentEndDetails.endDate && startDate
+      && (dateAdapter.isEqual(startDate, currentEndDetails.endDate)
+        || dateAdapter.isAfter(startDate, currentEndDetails.endDate))) {
+      endDetails = { endingType: EndType.ON, endDate: dateAdapter.addDays(startDate, 1) };
+    }
+
+    set({
+      startDate, minEndDate, endDetails, validationErrors: {},
+    });
+    get().buildRRuleString();
+  },
+  setEndDetails: (details) => {
+    set({ endDetails: details });
+
+    // rebuild the rrule string
+    get().buildRRuleString();
+  },
+  setRepeatDetails: (details) => {
+    set({ repeatDetails: details });
+    // rebuild the rrule string
+    get().buildRRuleString();
+  },
+  validateForm: async () => {
+    const { repeatDetails, frequency } = get();
+    if (isNil(frequency)) {
+      set({ validationErrors: { frequency: "Frequency is required" } });
+      return false;
+    }
+    const validationSchema = getValidationSchema(frequency);
+    try {
+      await validationSchema.validate({ ...repeatDetails, frequency }, { abortEarly: false });
+      set({ validationErrors: {} });
+      return true;
+    } catch (error) {
+      const errors = (error as Yup.ValidationError).inner.reduce(
+        (acc: Record<string, string>, err) => ({
+          ...acc,
+          [err.path!]: err.message,
+        }),
+        {},
+      );
+      set({ validationErrors: errors });
+      return false;
+    }
+  },
+  buildRRuleString: () => {
+    const {
+      repeatDetails, frequency, startDate, endDetails, dateAdapter,
+    } = get();
+
+    if (!dateAdapter) {
+      return;
+    }
+
+    const output = buildRRuleString({
+      frequency,
+      startDate,
+      repeatDetails,
+      endDetails,
+      dateAdapter,
+    });
+
+    set({ RRuleString: output });
+
+    // if there is an onChange function, call it with the output
+    const { onChange } = get();
+    if (onChange) onChange(output);
+  },
+  setOnChange: (onChange) => set({ onChange }),
+  setStoreFromRRuleString: (rruleString) => {
+    let parsedObj;
+    try {
+      parsedObj = RRule.parseString(rruleString);
+    } catch (error) {
+      console.error("Failed to parse RRULE string:", error);
+      set({ validationErrors: { rruleString: "Invalid RRULE string" } });
+      return;
+    }
+    const { dateAdapter } = get();
+
+    // --- Build all state up front, then apply once ---
+
+    // frequency
+    let frequency = initialState.frequency;
+    if (!isNil(parsedObj.freq)) {
+      frequency = parsedObj.freq;
+    }
+
+    // radio value
+    let radioValue: MonthBy | YearlyBy | null = null;
+    if (frequency === Frequency.YEARLY) {
+      if (parsedObj.byweekday || parsedObj.bysetpos) {
+        radioValue = YearlyBy.BYSETPOS;
+      } else if (parsedObj.bymonth || parsedObj.bymonthday) {
+        radioValue = YearlyBy.BYMONTH;
+      }
+    } else if (frequency === Frequency.MONTHLY) {
+      if (parsedObj.bymonthday) {
+        radioValue = MonthBy.BYMONTHDAY;
+      } else if (parsedObj.bysetpos || parsedObj.byweekday) {
+        radioValue = MonthBy.BYSETPOS;
+      }
+    }
+
+    // start date
+    let startDate = initialState.startDate;
+    let minEndDate;
+    if (parsedObj.dtstart && dateAdapter) {
+      startDate = dateAdapter.date(parsedObj.dtstart.toISOString()) ?? null;
+      if (startDate) {
+        minEndDate = dateAdapter.addDays(startDate, 1);
+      }
+    }
+
+    // end details
+    let endDetails: EndDetails<DateTime> = initialState.endDetails;
+    if (parsedObj.until && dateAdapter) {
+      const parsedDateEnd = dateAdapter.date(parsedObj.until.toISOString()) ?? null;
+      endDetails = { endingType: EndType.ON, endDate: parsedDateEnd };
+    } else if (parsedObj.count) {
+      endDetails = { endingType: EndType.AFTER, occurrences: parsedObj.count };
+    }
+
+    // repeat details
+    const repeatDetails: AllRepeatDetails = {
+      interval: isNil(parsedObj.interval) ? 1 : parsedObj.interval,
+      byDay: [],
+      byMonthDay: [],
+      byMonth: [],
+      bySetPos: [],
+    };
+
+    if (parsedObj.bymonth) {
+      if (Array.isArray(parsedObj.bymonth)) {
+        repeatDetails.byMonth = parsedObj.bymonth;
+      } else {
+        repeatDetails.byMonth = [parsedObj.bymonth];
+      }
+    }
+
+    if (parsedObj.bymonthday) {
+      if (Array.isArray(parsedObj.bymonthday)) {
+        repeatDetails.byMonthDay = parsedObj.bymonthday;
+      } else {
+        repeatDetails.byMonthDay = [parsedObj.bymonthday];
+      }
+    }
+
+    if (parsedObj.byweekday) {
+      if (Array.isArray(parsedObj.byweekday)) {
+        repeatDetails.byDay = parsedObj.byweekday.map((day) => day.toString() as Weekday);
+      } else {
+        repeatDetails.byDay = [parsedObj.byweekday.toString() as Weekday];
+      }
+    }
+
+    if (parsedObj.bysetpos) {
+      if (Array.isArray(parsedObj.bysetpos)) {
+        repeatDetails.bySetPos = parsedObj.bysetpos;
+      } else {
+        repeatDetails.bySetPos = [parsedObj.bysetpos];
+      }
+    }
+
+    // --- Single batched update ---
+    set({
+      frequency,
+      radioValue,
+      startDate,
+      minEndDate,
+      endDetails,
+      repeatDetails,
+      validationErrors: {},
+    });
+
+    // build once with final state, fires onChange once with correct value
+    get().buildRRuleString();
+  },
+  setAdapter: (dateAdapter) => {
+    set({ dateAdapter });
+  },
+}));
+
+// --- React Context for per-instance store ---
+
+export const BuilderStoreContext = createContext<BuilderStoreInstance | null>(null);
+
+interface BuilderStoreProviderProps {
+  children: React.ReactNode;
+}
+
+export const BuilderStoreProvider = ({ children }: BuilderStoreProviderProps) => {
+  const storeRef = useRef<BuilderStoreInstance | null>(null);
+  if (!storeRef.current) {
+    storeRef.current = createBuilderStore();
+  }
+  return (
+    <BuilderStoreContext.Provider value={storeRef.current}>
+      {children}
+    </BuilderStoreContext.Provider>
+  );
+};
+
+const useBuilderStore = (): BuilderStoreState => {
+  const store = useContext(BuilderStoreContext);
+  if (isNil(store)) {
+    throw new Error("useBuilderStore must be used within a BuilderStoreProvider or RRuleBuilder");
+  }
+  return useStore(store);
+};
+
+export default useBuilderStore;
