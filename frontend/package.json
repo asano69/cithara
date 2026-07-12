@@ -11,8 +11,9 @@
   "dependencies": {
     "@solidjs/router": "^0.16.1",
     "pocketbase": "^0.27.0",
+    "rrule": "^2.8.1",
     "solid-js": "^1.9.12",
-    "rrule": "^2.8.1"
+    "sortablejs": "^1.15.7"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.2",
