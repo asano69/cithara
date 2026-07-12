@@ -930,7 +930,7 @@ func init() {
 				"id": "pbc_4041782348",
 				"indexes": [],
 				"listRule": null,
-				"name": "events",
+				"name": "notes",
 				"system": false,
 				"type": "base",
 				"updateRule": null,
