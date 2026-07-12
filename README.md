@@ -42,7 +42,7 @@ notifications
 
 ## Plan
 
-- [ ] CLIで、github.com/teambition/rrule-go のライブラリの振る舞いを実験するプログラムを書く。
+- [x] CLIで、github.com/teambition/rrule-go のライブラリの振る舞いを実験するプログラムを書く。
 - [x] react-rrule-builder-ts をSolid.JS用に移植する。
 - [ ] cel-expr/cel-go の検討
 
