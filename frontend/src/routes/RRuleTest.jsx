@@ -27,7 +27,7 @@ export default function RRuleTest() {
       <h1 class="font-serif text-4xl">RRule Builder (test)</h1>
 
       <BuilderStoreProvider>
-        <RRuleBuilder onChange={setLastChange} />
+        <RRuleBuilder onChange={setLastChange} enableYearlyInterval />
         <RRulePreview />
       </BuilderStoreProvider>
 
