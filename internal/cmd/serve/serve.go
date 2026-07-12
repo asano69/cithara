@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/asano69/kithara/internal/assets"
 	"github.com/asano69/kithara/internal/config"
+	"github.com/asano69/kithara/internal/notify"
 	"io/fs"
 	"net/http"
 
@@ -15,6 +16,12 @@ import (
 
 	"github.com/sirupsen/logrus"
 )
+
+// testNotificationRequest is the body accepted by POST /api/notifications/test.
+type testNotificationRequest struct {
+	Endpoint string `json:"endpoint"`
+	Token    string `json:"token"`
+}
 
 // Run opens the database and collection once, registers all drill routes, then
 // starts listening. The database and collection are shared across all sessions.
@@ -55,6 +62,22 @@ func Run(app *pocketbase.PocketBase, cfg *config.Config) error {
 			http.ServeFileFS(re.Response, re.Request, assets.FS, "favicon.svg")
 			return nil
 		})
+
+		// The Settings page's "Test connection" button posts here instead of
+		// calling the notification provider directly from the browser: a
+		// direct browser->Gotify request would be blocked by CORS, since
+		// Gotify doesn't grant access to arbitrary browser origins. Making
+		// the request from the server sidesteps that entirely.
+		e.Router.POST("/api/notifications/test", func(re *core.RequestEvent) error {
+			var payload testNotificationRequest
+			if err := re.BindBody(&payload); err != nil {
+				return apis.NewBadRequestError("invalid request body", err)
+			}
+			if err := notify.TestGotify(payload.Endpoint, payload.Token); err != nil {
+				return apis.NewBadRequestError(err.Error(), nil)
+			}
+			return re.JSON(http.StatusOK, map[string]bool{"ok": true})
+		}).Bind(apis.RequireSuperuserAuth())
 
 		return e.Next()
 	})
