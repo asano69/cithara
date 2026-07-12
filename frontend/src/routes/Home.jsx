@@ -1,4 +1,4 @@
-import { createSignal, onMount, For } from "solid-js";
+import { createSignal, createResource, onMount, For, Show } from "solid-js";
 import { A } from "@solidjs/router";
 import {
   DragDropProvider,
@@ -9,16 +9,17 @@ import {
 } from "@thisbeyond/solid-dnd";
 import NavBar from "../components/NavBar";
 import pb from "../lib/pb";
+import { loadTimezone, localToUtc, utcToLocal } from "../lib/tz";
 
-// Matches the floating DATE-TIME format written by NewEntry.jsx:
-// "YYYYMMDDTHHMMSS" (no trailing "Z", so this is never UTC).
+// Matches the naive local "YYYYMMDDTHHMMSS" format produced by converting
+// a stored UTC dtstart with utcToLocal (see NoteForm.jsx).
 const DTSTART_RE = /^(\d{4})(\d{2})(\d{2})T(\d{6})$/;
 
-// Shifts the date part of a dtstart string by `deltaDays`, keeping the
-// time-of-day unchanged. Returns "" if dtstart doesn't match the expected
-// format.
-function shiftDtstart(dtstart, deltaDays) {
-  const match = DTSTART_RE.exec(dtstart);
+// Shifts the date part of a naive local dtstart string by `deltaDays`,
+// keeping the time-of-day unchanged. Returns "" if it doesn't match the
+// expected format.
+function shiftDtstart(naiveLocal, deltaDays) {
+  const match = DTSTART_RE.exec(naiveLocal);
   if (!match) return "";
   const [, y, mo, d, time] = match;
   const date = new Date(Date.UTC(Number(y), Number(mo) - 1, Number(d)));
@@ -29,10 +30,10 @@ function shiftDtstart(dtstart, deltaDays) {
   return `${yy}${mm}${dd}T${time}`;
 }
 
-// Replaces the date part of a dtstart string with today's local calendar
-// date, keeping the time-of-day unchanged.
-function setDtstartToday(dtstart) {
-  const match = DTSTART_RE.exec(dtstart);
+// Replaces the date part of a naive local dtstart string with today's
+// local calendar date, keeping the time-of-day unchanged.
+function setDtstartToday(naiveLocal) {
+  const match = DTSTART_RE.exec(naiveLocal);
   const time = match ? match[4] : "000000";
   const now = new Date();
   const y = now.getFullYear();
@@ -73,7 +74,8 @@ function NoteItem(props) {
             </p>
           )}
           <p class="mt-1 break-all font-mono text-xs text-[var(--color-border-soft)]">
-            {props.note.rrule} · DTSTART:{props.note.dtstart}
+            {props.note.rrule} · DTSTART:
+            {utcToLocal(props.note.dtstart, props.tz)}
           </p>
         </div>
 
@@ -96,7 +98,7 @@ function NoteItem(props) {
   );
 }
 
-export default function Home() {
+function HomeContent(props) {
   const [notes, setNotes] = createSignal([]);
 
   const loadNotes = async () => {
@@ -137,14 +139,19 @@ export default function Home() {
     persistOrder(reordered);
   };
 
-  // Shifts a note's dtstart by deltaDays (0 means "jump to today").
+  // Shifts a note's dtstart by deltaDays (0 means "jump to today"). The
+  // stored value is UTC, so it's converted to naive local, shifted, and
+  // converted back before saving.
   const handleShift = async (note, deltaDays) => {
-    const dtstart =
+    const naiveLocal = utcToLocal(note.dtstart, props.tz);
+    const shifted =
       deltaDays === 0
-        ? setDtstartToday(note.dtstart)
-        : shiftDtstart(note.dtstart, deltaDays);
-    if (!dtstart) return;
-    await pb.collection("notes").update(note.id, { dtstart });
+        ? setDtstartToday(naiveLocal)
+        : shiftDtstart(naiveLocal, deltaDays);
+    if (!shifted) return;
+    await pb.collection("notes").update(note.id, {
+      dtstart: localToUtc(shifted, props.tz),
+    });
     await loadNotes();
   };
 
@@ -157,12 +164,27 @@ export default function Home() {
           <SortableProvider ids={ids()}>
             <For each={notes()}>
               {(note) => (
-                <NoteItem note={note} onShift={(delta) => handleShift(note, delta)} />
+                <NoteItem
+                  note={note}
+                  tz={props.tz}
+                  onShift={(delta) => handleShift(note, delta)}
+                />
               )}
             </For>
           </SortableProvider>
         </ul>
       </DragDropProvider>
     </div>
+  );
+}
+
+// Resolved once here so the rest of the page can treat every dtstart
+// conversion as a plain synchronous function.
+export default function Home() {
+  const [tz] = createResource(loadTimezone);
+  return (
+    <Show when={tz()}>
+      <HomeContent tz={tz()} />
+    </Show>
   );
 }

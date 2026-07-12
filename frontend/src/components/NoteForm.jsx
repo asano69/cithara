@@ -1,24 +1,25 @@
 // Shared form used by both the "new entry" and "edit entry" routes. Reuses
 // RRuleBuilder for the recurrence rule and saves directly to PocketBase.
-import { createSignal } from "solid-js";
+import { createSignal, createResource, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import RRuleBuilder from "./RRuleBuilder/RRuleBuilder";
 import { BuilderStoreProvider, useBuilderStoreContext } from "../lib/rrule";
+import { loadTimezone, localToUtc, utcToLocal } from "../lib/tz";
 import pb from "../lib/pb";
 
 // Combines the RRuleBuilder's date-only startDate with a separately
-// entered time-of-day into an RFC 5545 floating-time DATE-TIME string:
-// "YYYYMMDDTHHMMSS" (no trailing "Z", which is what would make it UTC
-// instead of floating). This is naive on purpose (see CLAUDE.md, "don't
-// use timezones"): it's just the wall-clock time the notification should
-// fire at, same as a journal entry's date.
-function toDtstartString(date, time) {
+// entered time-of-day into a naive local "YYYYMMDDTHHMMSS" string, then
+// converts it to the canonical UTC dtstart string stored in the database.
+// All tz-awareness lives here on the client now (see CLAUDE.md, "don't use
+// timezones" — the server never sees or converts timezones at all).
+function toDtstartString(date, time, tz) {
   if (!date) return "";
   const y = date.getUTCFullYear();
   const m = String(date.getUTCMonth() + 1).padStart(2, "0");
   const d = String(date.getUTCDate()).padStart(2, "0");
   const [hh, mm] = (time || "00:00").split(":");
-  return `${y}${m}${d}T${hh.padStart(2, "0")}${mm.padStart(2, "0")}00`;
+  const naiveLocal = `${y}${m}${d}T${hh.padStart(2, "0")}${mm.padStart(2, "0")}00`;
+  return localToUtc(naiveLocal, tz);
 }
 
 // The store's rruleString includes a leading "DTSTART:" line, but dtstart
@@ -31,19 +32,20 @@ function extractRRuleLine(rruleString) {
 }
 
 // Reconstructs the "DTSTART:...\nRRULE:..." string RRuleBuilder expects,
-// from the separately stored dtstart/rrule fields, so an existing note's
-// recurrence can be loaded back into the builder for editing. The stored
-// dtstart is floating (no "Z"); appending "Z" here makes RRule.parseString
-// read it back as the same Y/M/D/H/M/S values via its UTC accessors,
-// matching how buildRRuleString.js serialized it in the first place.
-function toBuilderRRuleString(dtstart, rrule) {
+// from the stored UTC dtstart/rrule fields, so an existing note's
+// recurrence can be loaded back into the builder for editing. dtstart is
+// converted to naive local time first, then a "Z" is appended so
+// RRule.parseString reads the digits as-is via its UTC accessors —
+// matching how buildRRuleString.js serializes it in the first place.
+function toBuilderRRuleString(dtstart, rrule, tz) {
   if (!dtstart || !rrule) return "";
-  return `DTSTART:${dtstart}Z\nRRULE:${rrule}`;
+  const naiveLocal = utcToLocal(dtstart, tz);
+  return `DTSTART:${naiveLocal}Z\nRRULE:${rrule}`;
 }
 
-// Extracts "HH:MM" from a stored dtstart string ("YYYYMMDDTHHMMSS").
-function extractTime(dtstart) {
-  const match = /^\d{8}T(\d{2})(\d{2})\d{2}$/.exec(dtstart ?? "");
+// Extracts "HH:MM" from a naive local dtstart string ("YYYYMMDDTHHMMSS").
+function extractTime(naiveLocal) {
+  const match = /^\d{8}T(\d{2})(\d{2})\d{2}$/.exec(naiveLocal ?? "");
   return match ? `${match[1]}:${match[2]}` : "09:00";
 }
 
@@ -67,7 +69,9 @@ function NoteFormFields(props) {
   const [description, setDescription] = createSignal(
     props.note?.description ?? "",
   );
-  const [time, setTime] = createSignal(extractTime(props.note?.dtstart));
+  const [time, setTime] = createSignal(
+    extractTime(utcToLocal(props.note?.dtstart, props.tz)),
+  );
   const [pending, setPending] = createSignal(false);
   const [error, setError] = createSignal("");
 
@@ -86,7 +90,7 @@ function NoteFormFields(props) {
       const data = {
         label: label(),
         description: description(),
-        dtstart: toDtstartString(store.startDate(), time()),
+        dtstart: toDtstartString(store.startDate(), time(), props.tz),
         rrule: extractRRuleLine(store.rruleString()),
       };
       if (props.note) {
@@ -130,7 +134,11 @@ function NoteFormFields(props) {
 
       <RRuleBuilder
         enableYearlyInterval
-        rruleString={toBuilderRRuleString(props.note?.dtstart, props.note?.rrule)}
+        rruleString={toBuilderRRuleString(
+          props.note?.dtstart,
+          props.note?.rrule,
+          props.tz,
+        )}
       />
 
       <label class="flex flex-col gap-1 text-sm">
@@ -156,9 +164,15 @@ function NoteFormFields(props) {
 // props.note: pass an existing PocketBase note record to edit it, or omit
 // to create a new one.
 export default function NoteForm(props) {
+  // Resolved once here so every conversion in NoteFormFields can stay a
+  // plain synchronous function.
+  const [tz] = createResource(loadTimezone);
+
   return (
     <BuilderStoreProvider>
-      <NoteFormFields note={props.note} />
+      <Show when={tz()}>
+        <NoteFormFields note={props.note} tz={tz()} />
+      </Show>
     </BuilderStoreProvider>
   );
 }

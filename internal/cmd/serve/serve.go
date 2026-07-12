@@ -14,7 +14,6 @@ import (
 	"github.com/asano69/kithara/internal/notify"
 	"github.com/asano69/kithara/internal/scheduler"
 
-	"github.com/asano69/kithara/internal/tz"
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
@@ -50,35 +49,6 @@ func Run(app *pocketbase.PocketBase, cfg *config.Config) error {
 	app.OnRecordAfterCreateSuccess("notes").BindFunc(reloadOnChange)
 	app.OnRecordAfterUpdateSuccess("notes").BindFunc(reloadOnChange)
 	app.OnRecordAfterDeleteSuccess("notes").BindFunc(reloadOnChange)
-
-	// fix tz bug
-	app.OnRecordCreate("notes").BindFunc(func(e *core.RecordEvent) error {
-		converted, err := tz.ToUTC(e.Record.GetString("dtstart"), tz.Location(app))
-		if err != nil {
-			return apis.NewBadRequestError(err.Error(), nil)
-		}
-		e.Record.Set("dtstart", converted)
-		return e.Next()
-	})
-	app.OnRecordUpdate("notes").BindFunc(func(e *core.RecordEvent) error {
-		converted, err := tz.ToUTC(e.Record.GetString("dtstart"), tz.Location(app))
-		if err != nil {
-			return apis.NewBadRequestError(err.Error(), nil)
-		}
-		e.Record.Set("dtstart", converted)
-		return e.Next()
-	})
-
-	// Converts the stored UTC dtstart back to naive local time for every
-	// API/realtime response, so the frontend never has to know timezones
-	// exist. This is what keeps CLAUDE.md's "no timezones" contract intact
-	// at the API boundary while the DB stores an unambiguous instant.
-	app.OnRecordEnrich("notes").BindFunc(func(e *core.RecordEnrichEvent) error {
-		if converted, err := tz.ToLocal(e.Record.GetString("dtstart"), tz.Location(app)); err == nil {
-			e.Record.Set("dtstart", converted)
-		}
-		return e.Next()
-	})
 
 	// assetsFS exposes just the "assets/" subdirectory that Vite's default
 	// (unprefixed) base writes hashed JS/CSS bundles into, so they're served
