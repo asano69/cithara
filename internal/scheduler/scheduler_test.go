@@ -78,3 +78,21 @@ func TestParseRulePastDtstartAlwaysReturnsFutureNext(t *testing.T) {
 		t.Errorf("next = %v, want a time strictly after now (%v)", next, now)
 	}
 }
+
+func TestBuildMessageBody(t *testing.T) {
+	t.Run("joins label and description", func(t *testing.T) {
+		got := buildMessageBody(db.Note{Label: "Water plants", Description: "Living room ficus"})
+		want := "Water plants: Living room ficus"
+		if got != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("falls back to label alone when description is empty", func(t *testing.T) {
+		got := buildMessageBody(db.Note{Label: "Water plants", Description: ""})
+		want := "Water plants"
+		if got != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
+	})
+}

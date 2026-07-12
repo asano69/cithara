@@ -13,12 +13,12 @@ package scheduler
 
 import (
 	"context"
-	"sync"
-	"time"
-
+	"fmt"
 	"github.com/asano69/kithara/internal/db"
 	"github.com/asano69/kithara/internal/errs"
 	"github.com/asano69/kithara/internal/notify"
+	"sync"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/teambition/rrule-go"
@@ -231,11 +231,22 @@ func (s *Scheduler) fireDue(entries []entry) []entry {
 	return next
 }
 
+// buildMessageBody joins the note's label and description as
+// "label: description". If description is empty, only the label is
+// used, since a trailing ": " with nothing after it looks broken and
+// Gotify may reject an effectively-empty message.
+func buildMessageBody(note db.Note) string {
+	if note.Description == "" {
+		return note.Label
+	}
+	return fmt.Sprintf("%s: %s", note.Label, note.Description)
+}
+
 // notify sends note's message to every configured Gotify target, logging
 // (rather than failing) any delivery error so one broken connection
 // doesn't stop the others from receiving it.
 func (s *Scheduler) notify(note db.Note, targets []db.NotificationTarget) {
-	msg := notify.Message{Title: note.Label, Body: note.Description}
+	msg := notify.Message{Title: "Kithara", Body: buildMessageBody(note)}
 
 	for _, t := range targets {
 		if t.Provider != "gotify" {
