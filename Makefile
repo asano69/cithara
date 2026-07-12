@@ -35,7 +35,7 @@ kill-ports:
 
 .PHONY: server
 server: kill-ports
-	#./mineralbox migrate up --dir=pb_data
+	#./kithara migrate up --dir=pb_data
 	./$(BINARY) superuser upsert admin@mail.internal password --dir=pb_data
 	./$(BINARY) serve
 
@@ -63,7 +63,7 @@ format:
 
 migrate-collections:
 	rm -f migrations/*.go
-	yes | go run ./cmd/mineralbox migrate collections # 開発初期限定
+	yes | go run ./cmd/kithara migrate collections # 開発初期限定
 
 
 
