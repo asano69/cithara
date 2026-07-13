@@ -6,7 +6,7 @@
 FROM node:22-alpine AS node-builder
 WORKDIR /build/frontend
 # Copy only dependency manifests first to leverage Docker layer caching
-COPY frontend/package.json frontend/pnpm-lock.yaml* ./
+COPY frontend/package.json frontend/pnpm-lock.yaml* frontend/pnpm-workspace.yaml* ./
 RUN corepack enable
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
     pnpm install
