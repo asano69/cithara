@@ -88,13 +88,17 @@ tester
 - “RRULEビルダー | 無料オンライン繰り返しルール生成ツール | Toolsbase”. Toolsbase, [https://toolsbase.dev/ja/time/rrule-builder](https://toolsbase.dev/ja/time/rrule-builder), (Accessed 2026-07-12)
 - “Recurring Date Generator”. YouCalc, [https://youcalc.com/en/date-time/recurring-date-generator/](https://youcalc.com/en/date-time/recurring-date-generator/), (Accessed 2026-07-12)
 
-### Tech Stack
+## Tech Stack
+
 Frontend: Solid.js, Tailwind v4
-- https://github.com/jkbrzt/rrule
 Backend: Go/PocketBase v0.39+
 
----
+### RRule Engine
 
-=> https://github.com/teambition/rrule-go  
-=> https://github.com/jkbrzt/rrule  
-=> https://github.com/dcantatore/react-rrule-builder-ts  
+A synchronized implementation of recurrence logic exists on both sides of the stack:
+- Server: [teambition/rrule-go](https://github.com/teambition/rrule-go) for high-performance schedule evaluation.
+- Client: [jkbrzt/rrule](https://github.com/jkbrzt/rrule) (JS) for real-time preview of next occurrences in the UI.
+- For details, see RRule Engine.
+
+UI
+- https://github.com/dcantatore/react-rrule-builder-ts  
