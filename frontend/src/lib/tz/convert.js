@@ -80,3 +80,11 @@ export function formatNaive(naiveStr) {
   const [, y, mo, d, h, mi] = m;
   return `${y}/${mo}/${d} ${h}:${mi}`;
 }
+
+// Formats the current instant as "YYYY-MM-DD HH:mm" in tzId, for display
+// purposes (e.g. NavBar's live clock). Unlike the naive dtstart helpers
+// above, this reads the actual current time, not stored note data.
+export function formatNowInTz(tzId) {
+  const p = partsInTz(new Date(), tzId);
+  return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`;
+}

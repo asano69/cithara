@@ -1,4 +1,4 @@
-import { createSignal, createResource, onMount, For, Show } from "solid-js";
+import { createSignal, createResource, onCleanup, onMount, For, Show } from "solid-js";
 import { A } from "@solidjs/router";
 import {
   DragDropProvider,
@@ -14,6 +14,10 @@ import { nextOccurrenceUtcString } from "../lib/rrule";
 // Matches the naive local "YYYYMMDDTHHMMSS" format produced by converting
 // a stored UTC dtstart with utcToLocal (see NoteForm.jsx).
 const DTSTART_RE = /^(\d{4})(\d{2})(\d{2})T(\d{6})$/;
+
+// Matches the canonical UTC dtstart/next-occurrence string format
+// ("YYYYMMDDTHHMMSSZ"), used here to compute a countdown.
+const UTC_RE = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/;
 
 // Shifts the date part of a naive local dtstart string by `deltaDays`,
 // keeping the time-of-day unchanged. Returns "" if it doesn't match the
@@ -42,6 +46,33 @@ function setDtstartToday(naiveLocal) {
   return `${y}${m}${d}T${time}`;
 }
 
+
+// Formats the time remaining until a canonical UTC "YYYYMMDDTHHMMSSZ"
+// string, as "Xd Yh Zm". referenceMs lets callers pass a reactive "now"
+// signal so the countdown updates live. Returns "" if utcStr is empty,
+// unparsable, or already in the past.
+function formatRemaining(utcStr, referenceMs) {
+  const m = UTC_RE.exec(utcStr ?? "");
+  if (!m) return "";
+
+  const [, y, mo, d, h, mi, s] = m;
+  const target = new Date(Date.UTC(+y, +mo - 1, +d, +h, +mi, +s));
+  const diffMs = target.getTime() - referenceMs;
+  if (diffMs <= 0) return "";
+
+  const totalMinutes = Math.floor(diffMs / 60000);
+  const days = Math.floor(totalMinutes / (24 * 60));
+  const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+  const minutes = totalMinutes % 60;
+
+  const parts = [];
+  if (days > 0) parts.push(`${days}d`);
+  if (days > 0 || hours > 0) parts.push(`${hours}h`);
+  parts.push(`${minutes}m`);
+  return parts.join(" ");
+}
+
+
 function NoteItem(props) {
   // The whole item is the drag source (not just the ⋮⋮ icon): solid-dnd's
   // handle-only pattern relies on spreading dragActivators onto a
@@ -50,6 +81,18 @@ function NoteItem(props) {
   // still requires a movement threshold before a drag starts, so clicking
   // the Edit link or the day-shift buttons still works normally.
   const sortable = createSortable(props.note.id);
+
+  // Drives the countdown display; ticks once a minute so "Xd Yh Zm" stays
+  // current without needing a full note reload.
+  const [now, setNow] = createSignal(Date.now());
+  onMount(() => {
+    const intervalId = setInterval(() => setNow(Date.now()), 60000);
+    onCleanup(() => clearInterval(intervalId));
+  });
+
+  const nextUtc = () =>
+    nextOccurrenceUtcString(props.note.dtstart, props.note.rrule);
+  const remaining = () => formatRemaining(nextUtc(), now());
 
   return (
     <li
@@ -76,12 +119,8 @@ function NoteItem(props) {
           <div class="mt-1 flex flex-col gap-0.5 font-mono text-xs text-[var(--color-border-soft)]">
             <span>
               Next:{" "}
-              {formatNaive(
-                utcToLocal(
-                  nextOccurrenceUtcString(props.note.dtstart, props.note.rrule),
-                  props.tz,
-                ),
-              ) || "—"}
+              {formatNaive(utcToLocal(nextUtc(), props.tz)) || "—"}
+              {remaining() && ` (⏳️${remaining()})`}
             </span>
             <span>
               Base: {formatNaive(utcToLocal(props.note.dtstart, props.tz))}
@@ -107,6 +146,8 @@ function NoteItem(props) {
     </li>
   );
 }
+
+
 
 function HomeContent(props) {
   const [notes, setNotes] = createSignal([]);
