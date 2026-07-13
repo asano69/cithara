@@ -50,7 +50,7 @@ func SendGotify(endpoint, token string, msg Message) error {
 	body, err := json.Marshal(map[string]any{
 		"title":    msg.Title,
 		"message":  msg.Body,
-		"priority": 1,
+		"priority": 4,
 	})
 	if err != nil {
 		return errs.Newf("build request: %v", err)
