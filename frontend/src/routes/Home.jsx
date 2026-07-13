@@ -9,8 +9,8 @@ import {
 } from "@thisbeyond/solid-dnd";
 import NavBar from "../components/NavBar";
 import pb from "../lib/pb";
-import { loadTimezone, localToUtc, utcToLocal } from "../lib/tz";
-
+import { loadTimezone, localToUtc, utcToLocal, formatNaive } from "../lib/tz";
+import { nextOccurrenceUtcString } from "../lib/rrule";
 // Matches the naive local "YYYYMMDDTHHMMSS" format produced by converting
 // a stored UTC dtstart with utcToLocal (see NoteForm.jsx).
 const DTSTART_RE = /^(\d{4})(\d{2})(\d{2})T(\d{6})$/;
@@ -73,10 +73,20 @@ function NoteItem(props) {
               {props.note.description}
             </p>
           )}
-          <p class="mt-1 break-all font-mono text-xs text-[var(--color-border-soft)]">
-            {props.note.rrule} · DTSTART:
-            {utcToLocal(props.note.dtstart, props.tz)}
-          </p>
+          <div class="mt-1 flex flex-col gap-0.5 font-mono text-xs text-[var(--color-border-soft)]">
+            <span>
+              Next:{" "}
+              {formatNaive(
+                utcToLocal(
+                  nextOccurrenceUtcString(props.note.dtstart, props.note.rrule),
+                  props.tz,
+                ),
+              ) || "—"}
+            </span>
+            <span>
+              Base: {formatNaive(utcToLocal(props.note.dtstart, props.tz))}
+            </span>
+          </div>
         </div>
 
         <div class="flex flex-wrap gap-2">
@@ -102,9 +112,7 @@ function HomeContent(props) {
   const [notes, setNotes] = createSignal([]);
 
   const loadNotes = async () => {
-    const list = await pb
-      .collection("notes")
-      .getFullList({ sort: "position" });
+    const list = await pb.collection("notes").getFullList({ sort: "position" });
     setNotes(list);
   };
 

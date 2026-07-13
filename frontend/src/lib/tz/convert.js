@@ -71,3 +71,12 @@ function formatUtc(date) {
   const p = partsInTz(date, "UTC");
   return `${p.year}${p.month}${p.day}T${p.hour}${p.minute}${p.second}Z`;
 }
+
+// Formats a naive "YYYYMMDDTHHMMSS" wall-clock string for display, e.g.
+// "2026/07/12 06:00".
+export function formatNaive(naiveStr) {
+  const m = NAIVE_RE.exec(naiveStr ?? "");
+  if (!m) return "";
+  const [, y, mo, d, h, mi] = m;
+  return `${y}/${mo}/${d} ${h}:${mi}`;
+}

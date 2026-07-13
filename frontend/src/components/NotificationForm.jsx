@@ -17,9 +17,7 @@ export default function NotificationForm(props) {
     props.notification?.endpoint ?? "",
   );
   const [token, setToken] = createSignal(props.notification?.token ?? "");
-  const [channel, setChannel] = createSignal(
-    props.notification?.channel ?? "",
-  );
+  const [channel, setChannel] = createSignal(props.notification?.channel ?? "");
   const [pending, setPending] = createSignal(false);
   const [error, setError] = createSignal("");
   const [testing, setTesting] = createSignal(false);
@@ -50,7 +48,9 @@ export default function NotificationForm(props) {
         channel: channel(),
       };
       if (props.notification) {
-        await pb.collection("notifications").update(props.notification.id, data);
+        await pb
+          .collection("notifications")
+          .update(props.notification.id, data);
       } else {
         await pb.collection("notifications").create(data);
       }

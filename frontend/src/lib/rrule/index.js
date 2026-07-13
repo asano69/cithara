@@ -26,6 +26,7 @@ export {
 
 export { buildRRuleString } from "./buildRRuleString";
 export { validateRepeatDetails } from "./validate";
+export { nextOccurrenceUtcString } from "./nextOccurrence";
 
 export { createBuilderStore, baseRepeatDetails } from "./builderStore";
 export {

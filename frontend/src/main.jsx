@@ -40,7 +40,7 @@ render(
         <Route path="/rrule-test" component={RRuleTest} />
         <Route path="/new" component={NewEntry} />
         <Route path="/edit/:id" component={EditEntry} />
-     <Route path="/stats" component={Stats} />
+        <Route path="/stats" component={Stats} />
       </Router>
     </AuthGate>
   ),

@@ -6,7 +6,7 @@ import RRuleBuilder from "./RRuleBuilder/RRuleBuilder";
 import Button from "./Button";
 import { BuilderStoreProvider, useBuilderStoreContext } from "../lib/rrule";
 import { loadTimezone, localToUtc, utcToLocal } from "../lib/tz";
-import pb from "../lib/pb"
+import pb from "../lib/pb";
 
 // Combines the RRuleBuilder's date-only startDate with a separately
 // entered time-of-day into a naive local "YYYYMMDDTHHMMSS" string, then
@@ -63,7 +63,6 @@ async function nextPosition() {
   }
 }
 
-
 function NoteFormFields(props) {
   const store = useBuilderStoreContext();
   const navigate = useNavigate();
@@ -114,7 +113,9 @@ function NoteFormFields(props) {
   // Deletes the note being edited. Only rendered when props.note exists,
   // so there is nothing to delete on the "new entry" form.
   const handleDelete = async () => {
-    if (!window.confirm(`Delete "${props.note.label}"? This cannot be undone.`)) {
+    if (
+      !window.confirm(`Delete "${props.note.label}"? This cannot be undone.`)
+    ) {
       return;
     }
     setError("");
@@ -207,4 +208,3 @@ export default function NoteForm(props) {
     </BuilderStoreProvider>
   );
 }
-
