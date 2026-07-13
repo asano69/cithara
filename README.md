@@ -49,7 +49,12 @@ notifications
 - [x] react-rrule-builder-ts をSolid.JS用に移植する。
 - [ ] cel-expr/cel-go の検討
 - [ ] note画面では、rruleビルダーとrrule式を双方向バインドして、どちらを編集してもよいようにする。ただしRRULE式が手動で編集されている場合はそちらを尊重するようにする。
-
+- [ ] Notifierを選択可能にする
+- [ ] TimeZoneを設定可能にする。（現在、手動で、settingsテーブルに、TZ, Azia/Tokyo と登録する必要がある。（厄介すぎ。せめて初期化時にデータを自動挿入してほしい）
+- [ ] Gotifyの優先度を設定できるようにする
+- [ ] Enable/Disableの設定をできるようにする
+- [ ] Noteのフィルタとソートをできるようにする
+- [ ] タグを設定できるようにする
 
 ## Recurrence Rule
 
