@@ -2,21 +2,21 @@
 // grade buttons, End, Reset, etc). variant="danger" is used for the
 // destructive "Home" action on the session-summary screens.
 
-// 1. ボタンの「骨格」（サイズ、マージン、フォント、アニメーション、無効化挙動などすべて維持）
+// 1. Layout skeleton (size, margins, font, transitions, disabled state)
 const baseLayout =
   "my-1.5 cursor-pointer appearance-none whitespace-nowrap rounded-md px-3 py-[7px] " +
   "font-sans text-base font-semibold " +
   "transition-colors transition-shadow duration-150 md:mx-3 md:my-0 " +
   "disabled:cursor-not-allowed disabled:opacity-40";
 
-// 2. 通常時の「色」
+// 2. Default color scheme
 const defaultColors =
   "shadow-[0_1px_3px_0_var(--color-shadow)] " +
   "border border-[var(--color-border-soft)] bg-[var(--color-field)] text-[var(--color-text)] " +
   "enabled:hover:bg-[var(--color-hover-bg)] enabled:hover:border-[var(--color-hover-border)] " +
   "enabled:active:bg-[var(--color-active-bg)] enabled:active:border-[var(--color-active-border)]";
 
-// 3. Danger時の「赤色」（baseLayoutのサイズ感のまま、色だけを置き換える）
+// 3. Danger color scheme (same layout as baseLayout, colors only)
 const dangerColors =
   "text-white " +
   "shadow-[0_1px_3px_0_rgb(220_53_69_/_0.3)] " +
@@ -25,7 +25,7 @@ const dangerColors =
   "enabled:active:bg-[#bd2130] enabled:active:border-[#bd2130]";
 
 export default function Button(props) {
-  // 骨格（baseLayout）に対して、通常色か危険色かを組み合わせる
+  // Combine the layout skeleton with either the default or danger colors.
   const buttonClass =
     props.variant === "danger"
       ? `${baseLayout} ${dangerColors}`
@@ -34,7 +34,7 @@ export default function Button(props) {
   return (
     <input
       id={props.id}
-      className={buttonClass} // Reactの規約に合わせて class から className に修正しています
+      class={buttonClass}
       type="button"
       value={props.value}
       title={props.title}
