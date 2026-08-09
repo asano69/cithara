@@ -1,7 +1,8 @@
 import { createSignal, createMemo, onMount, onCleanup, createResource, For, Show } from "solid-js";
 import { A } from "@solidjs/router";
-import { Hourglass } from "lucide-solid";
+import { Tooltip } from "@kobalte/core/tooltip";
 import pb from "../lib/pb";
+import Hourglass from "lucide-solid/icons/hourglass";
 import { loadTimezone, localToUtc, utcToLocal, formatNaive } from "../lib/tz";
 import { nextOccurrenceUtcString } from "../lib/rrule";
 
@@ -90,7 +91,28 @@ function NoteItem(props) {
       <div class="flex flex-1 flex-col gap-2">
         <div>
           <div class="flex items-baseline justify-between gap-2">
-            <h2 class="font-serif text-xl">{props.note.label}</h2>
+            {/* Description shows as a tooltip on hover/focus of the title;
+                notes without a description just render a plain h2. */}
+            <Show
+              when={props.note.description}
+              fallback={<h2 class="font-serif text-xl">{props.note.label}</h2>}
+            >
+              <Tooltip>
+                <Tooltip.Trigger
+                  as="h2"
+                  tabIndex={0}
+                  class="cursor-default font-serif text-xl focus:outline-none"
+                >
+                  {props.note.label}
+                </Tooltip.Trigger>
+                <Tooltip.Portal>
+                  <Tooltip.Content class="max-w-xs rounded-md border border-[var(--color-border-soft)] bg-[var(--color-field)] px-3 py-2 text-sm text-[var(--color-text)] shadow-[0_1px_3px_0_var(--color-shadow)]">
+                    <Tooltip.Arrow />
+                    {props.note.description}
+                  </Tooltip.Content>
+                </Tooltip.Portal>
+              </Tooltip>
+            </Show>
             {remaining() && (
               <span class="flex items-center gap-1 whitespace-nowrap font-serif text-xl">
                 <Hourglass class="h-4 w-4 transition-transform duration-500 hover:rotate-[360deg]" />
@@ -98,11 +120,7 @@ function NoteItem(props) {
               </span>
             )}
           </div>
-          {props.note.description && (
-            <p class="text-sm text-[var(--color-border-soft)]">
-              {props.note.description}
-            </p>
-          )}
+  
           <div class="mt-1 flex flex-col gap-0.5 font-mono text-xs text-[var(--color-border-soft)]">
             <span>
               Next: {formatNaive(utcToLocal(nextUtc(), props.tz)) || "—"}
