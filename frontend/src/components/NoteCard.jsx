@@ -4,15 +4,18 @@
 import { createSignal, createMemo, onMount, onCleanup, Show } from "solid-js";
 import { A } from "@solidjs/router";
 import { Tooltip } from "@kobalte/core/tooltip";
+import { Progress } from "@kobalte/core/progress";
 import Hourglass from "lucide-solid/icons/hourglass";
 import { utcToLocal, formatNaive } from "../lib/tz";
 import { nextOccurrenceUtcString } from "../lib/rrule";
-import { formatRemaining } from "../lib/noteSchedule";
+import { formatRemaining, computeProgressFraction } from "../lib/noteSchedule";
 
 export default function NoteCard(props) {
   const [now, setNow] = createSignal(Date.now());
   onMount(() => {
-    const intervalId = setInterval(() => setNow(Date.now()), 60000);
+    // Ticks every second so the progress bar (which can span as little as
+    // a minute) moves smoothly instead of jumping once a minute.
+    const intervalId = setInterval(() => setNow(Date.now()), 1000);
     onCleanup(() => clearInterval(intervalId));
   });
 
@@ -21,6 +24,16 @@ export default function NoteCard(props) {
     return nextOccurrenceUtcString(props.note.dtstart, props.note.rrule);
   });
   const remaining = createMemo(() => formatRemaining(nextUtc(), now()));
+
+  // null when there's no next occurrence (the rule has ended), so the
+  // bar just hides. Progress runs from dtstart ("Base", the reference
+  // date the user resets each cycle) to the next occurrence.
+  const progress = createMemo(() => {
+    const next = nextUtc();
+    return next
+      ? computeProgressFraction(props.note.dtstart, next, now())
+      : null;
+  });
 
   return (
     <li class="flex items-start gap-3 rounded-md border border-[var(--color-border-soft)] bg-[var(--color-field)] p-4 shadow-[0_1px_3px_0_var(--color-shadow)]">
@@ -56,6 +69,17 @@ export default function NoteCard(props) {
               </span>
             )}
           </div>
+
+          <Show when={progress() !== null}>
+            <Progress value={Math.round(progress() * 100)} class="mt-1 w-full">
+              <Progress.Track class="h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-muted)]">
+                <Progress.Fill
+                  class="h-full rounded-full bg-[var(--color-progress)] transition-[width]"
+                  style={{ width: "var(--kb-progress-fill-width)" }}
+                />
+              </Progress.Track>
+            </Progress>
+          </Show>
 
           <div class="mt-1 flex flex-col gap-0.5 font-mono text-xs text-[var(--color-border-soft)]">
             <span>

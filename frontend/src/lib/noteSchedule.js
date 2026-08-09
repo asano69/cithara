@@ -45,6 +45,20 @@ export function parseUtcMs(utcStr) {
   return Date.UTC(+y, +mo - 1, +d, +h, +mi, +s);
 }
 
+// Returns how far referenceMs has progressed from baseUtc (the note's
+// dtstart, i.e. the "Base" field the user resets each cycle) to nextUtc
+// (the next occurrence), as a fraction from 0 to 1 (clamped). Returns
+// null if either bound is unparsable or the cycle has zero/negative
+// length.
+export function computeProgressFraction(baseUtc, nextUtc, referenceMs) {
+  const baseMs = parseUtcMs(baseUtc);
+  const nextMs = parseUtcMs(nextUtc);
+  if (baseMs === null || nextMs === null || nextMs <= baseMs) return null;
+
+  const fraction = (referenceMs - baseMs) / (nextMs - baseMs);
+  return Math.min(1, Math.max(0, fraction));
+}
+
 // Formats the time remaining until a canonical UTC "YYYYMMDDTHHMMSSZ"
 // string, as "Xd Yh Zm". referenceMs lets callers pass a reactive "now"
 // signal so the countdown updates live. Returns "" if utcStr is empty,
