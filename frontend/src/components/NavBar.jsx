@@ -2,9 +2,9 @@ import { createSignal, onCleanup, onMount, Show } from "solid-js";
 import { A } from "@solidjs/router";
 import pb from "../lib/pb";
 import { loadTimezone, formatNowInTz } from "../lib/tz";
+import Logo from "./Logo";
 
-export default function NavBar(props) {
-  const [refreshing, setRefreshing] = createSignal(false);
+export default function NavBar() {
   const [tz, setTz] = createSignal(null);
   const [clock, setClock] = createSignal("");
 
@@ -30,13 +30,7 @@ onMount(() => {
 return (
     <div class="mb-10 flex w-full flex-wrap items-center justify-between gap-y-3">
       <div class="flex flex-wrap items-center gap-4">
-        <A
-          href="/"
-          class="font-serif text-4xl flex items-center gap-2 transition-opacity hover:opacity-80"
-        >
-          <img src="/favicon.svg" alt="" class="h-12 w-12" />
-          <h1>Cithara</h1>
-        </A>
+        <Logo linkable />
         <Show when={tz()}>
           <span class="text-sm text-[var(--color-border-soft)]">
             {clock()} ({tz()})

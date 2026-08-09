@@ -1,5 +1,6 @@
 import { createSignal } from "solid-js";
 import pb from "../lib/pb";
+import Logo from "../components/Logo";
 
 // Login screen shown by AuthGate when no valid superuser session exists.
 // This app is single-user, so the PocketBase superuser account also
@@ -32,7 +33,9 @@ export default function Login() {
         onSubmit={handleSubmit}
         class="flex w-full max-w-sm flex-col gap-4 rounded-md border border-[var(--color-border-soft)] bg-[var(--color-field)] p-8 shadow-[0_1px_3px_0_var(--color-shadow)]"
       >
-        <h1 class="text-center font-serif text-3xl">Cithara</h1>
+        <div class="flex justify-center">
+          <Logo />
+        </div>
         <input
           type="email"
           placeholder="Email"
