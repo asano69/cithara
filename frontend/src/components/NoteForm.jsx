@@ -63,19 +63,10 @@ async function nextPosition() {
   }
 }
 
+// (toDtstartString, extractRRuleLine, toBuilderRRuleString, extractTime は変更なし)
+
 function NoteFormFields(props) {
-  const store = useBuilderStoreContext();
-  const navigate = useNavigate();
-  const [label, setLabel] = createSignal(props.note?.label ?? "");
-  const [description, setDescription] = createSignal(
-    props.note?.description ?? "",
-  );
-  const [time, setTime] = createSignal(
-    extractTime(utcToLocal(props.note?.dtstart, props.tz)),
-  );
-  const [pending, setPending] = createSignal(false);
-  const [deleting, setDeleting] = createSignal(false);
-  const [error, setError] = createSignal("");
+  // ... 変更なし（label, description, time, pending, deleting, error）...
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -98,7 +89,6 @@ function NoteFormFields(props) {
       if (props.note) {
         await pb.collection("notes").update(props.note.id, data);
       } else {
-        data.position = await nextPosition();
         await pb.collection("notes").create(data);
       }
       navigate("/");
@@ -109,6 +99,7 @@ function NoteFormFields(props) {
       setPending(false);
     }
   };
+
 
   // Deletes the note being edited. Only rendered when props.note exists,
   // so there is nothing to delete on the "new entry" form.

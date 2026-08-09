@@ -1,12 +1,10 @@
 import { createSignal, createMemo, onMount, onCleanup, createResource, For, Show } from "solid-js";
 import { A } from "@solidjs/router";
-import { DragDropProvider } from "@dnd-kit/solid";
-import { useSortable, isSortable } from "@dnd-kit/solid/sortable";
 import NavBar from "../components/NavBar";
 import pb from "../lib/pb";
 import { loadTimezone, localToUtc, utcToLocal, formatNaive } from "../lib/tz";
 import { nextOccurrenceUtcString } from "../lib/rrule";
-// ...(shiftDtstart / setDtstartToday / formatRemaining はそのまま)...
+
 // Matches the naive local "YYYYMMDDTHHMMSS" format produced by converting
 // a stored UTC dtstart with utcToLocal (see NoteForm.jsx).
 const DTSTART_RE = /^(\d{4})(\d{2})(\d{2})T(\d{6})$/;
@@ -42,7 +40,6 @@ function setDtstartToday(naiveLocal) {
   return `${y}${m}${d}T${time}`;
 }
 
-
 // Formats the time remaining until a canonical UTC "YYYYMMDDTHHMMSSZ"
 // string, as "Xd Yh Zm". referenceMs lets callers pass a reactive "now"
 // signal so the countdown updates live. Returns "" if utcStr is empty,
@@ -69,13 +66,6 @@ function formatRemaining(utcStr, referenceMs) {
 }
 
 function NoteItem(props) {
-  // index is this note's current position within the list (reactive getter,
-  // see the <For> callback below).
-  const { ref, handleRef, isDragging } = useSortable({
-    get id() { return props.note.id; },
-    get index() { return props.index; },
-  });
-
   const [now, setNow] = createSignal(Date.now());
   onMount(() => {
     const intervalId = setInterval(() => setNow(Date.now()), 60000);
@@ -89,22 +79,8 @@ function NoteItem(props) {
   const remaining = createMemo(() => formatRemaining(nextUtc(), now()));
 
   return (
-    <li
-      ref={ref}
-      classList={{ "opacity-40": isDragging() }}
-      class="flex items-start gap-3 rounded-md border border-[var(--color-border-soft)] bg-[var(--color-field)] p-4 shadow-[0_1px_3px_0_var(--color-shadow)]"
-    >
-      <div
-        ref={handleRef}
-        class="mt-1 -m-2 touch-none select-none p-2 text-lg leading-none text-[var(--color-border-soft)] active:cursor-grabbing"
-        title="Drag to reorder"
-        aria-label="Drag to reorder"
-      >
-        ⋮⋮
-      </div>
-
-
-  <div class="flex flex-1 flex-col gap-2">
+    <li class="flex items-start gap-3 rounded-md border border-[var(--color-border-soft)] bg-[var(--color-field)] p-4 shadow-[0_1px_3px_0_var(--color-shadow)]">
+      <div class="flex flex-1 flex-col gap-2">
         <div>
           <h2 class="font-serif text-xl">{props.note.label}</h2>
           {props.note.description && (
@@ -143,45 +119,15 @@ function NoteItem(props) {
   );
 }
 
-
-
 function HomeContent(props) {
   const [notes, setNotes] = createSignal([]);
 
   const loadNotes = async () => {
-    const list = await pb.collection("notes").getFullList({ sort: "position" });
+    const list = await pb.collection("notes").getFullList({ sort: "created" });
     setNotes(list);
   };
 
   onMount(loadNotes);
-
-  // Persists position for every note whose position actually changed,
-  // then reloads from the server so the UI reflects the confirmed state.
-  const persistOrder = async (orderedNotes) => {
-    await Promise.all(
-      orderedNotes.map((note, i) => {
-        const position = i + 1;
-        if (note.position === position) return null;
-        return pb.collection("notes").update(note.id, { position });
-      }),
-    );
-    await loadNotes();
-  };
-
-  const handleDragEnd = (event) => {
-    if (event.canceled) return;
-    const { source } = event.operation;
-    if (!isSortable(source)) return;
-
-    const { initialIndex, index } = source;
-    if (initialIndex === index) return;
-
-    const reordered = [...notes()];
-    const [moved] = reordered.splice(initialIndex, 1);
-    reordered.splice(index, 0, moved);
-    setNotes(reordered);
-    persistOrder(reordered);
-  };
 
   // Shifts a note's dtstart by deltaDays (0 means "jump to today"). The
   // stored value is UTC, so it's converted to naive local, shifted, and
@@ -202,24 +148,20 @@ function HomeContent(props) {
   return (
     <div class="mx-auto flex min-h-screen w-full max-w-xl flex-col items-center bg-[var(--color-bg)] px-6 py-12 text-[var(--color-text)]">
       <NavBar />
-      <DragDropProvider onDragEnd={handleDragEnd}>
-        <ul class="flex w-full flex-col gap-3">
-          <For each={notes()}>
-            {(note, index) => (
-              <NoteItem
-                note={note}
-                index={index()}
-                tz={props.tz}
-                onShift={(delta) => handleShift(note, delta)}
-              />
-            )}
-          </For>
-        </ul>
-      </DragDropProvider>
+      <ul class="flex w-full flex-col gap-3">
+        <For each={notes()}>
+          {(note) => (
+            <NoteItem
+              note={note}
+              tz={props.tz}
+              onShift={(delta) => handleShift(note, delta)}
+            />
+          )}
+        </For>
+      </ul>
     </div>
   );
-
- }
+}
 
 // Resolved once here so the rest of the page can treat every dtstart
 // conversion as a plain synchronous function.
