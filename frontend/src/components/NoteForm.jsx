@@ -3,7 +3,6 @@
 import { createSignal, createResource, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import RRuleBuilder from "./RRuleBuilder/RRuleBuilder";
-import Button from "./Button";
 import { BuilderStoreProvider, useBuilderStoreContext } from "../lib/rrule";
 import { loadTimezone, localToUtc, utcToLocal } from "../lib/tz";
 import pb from "../lib/pb";
@@ -172,12 +171,14 @@ function NoteFormFields(props) {
           {pending() ? "Saving…" : "Save"}
         </button>
         {props.note && (
-          <Button
-            variant="danger"
-            value={deleting() ? "Deleting…" : "Delete"}
+          <button
+            type="button"
+            class="btn text-white shadow-[0_1px_3px_0_rgb(220_53_69_/_0.3)] border border-[#c82333] bg-[#dc3545] enabled:hover:bg-[#c82333] enabled:hover:border-[#c82333] enabled:active:bg-[#bd2130] enabled:active:border-[#bd2130]"
             disabled={pending() || deleting()}
             onClick={handleDelete}
-          />
+          >
+            {deleting() ? "Deleting…" : "Delete"}
+          </button>
         )}
       </div>
     </form>
