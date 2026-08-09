@@ -1,6 +1,5 @@
 import { createSignal, createMemo, onMount, onCleanup, createResource, For, Show } from "solid-js";
 import { A } from "@solidjs/router";
-import NavBar from "../components/NavBar";
 import pb from "../lib/pb";
 import { loadTimezone, localToUtc, utcToLocal, formatNaive } from "../lib/tz";
 import { nextOccurrenceUtcString } from "../lib/rrule";
@@ -146,20 +145,17 @@ function HomeContent(props) {
   };
 
   return (
-    <div class="mx-auto flex min-h-screen w-full max-w-xl flex-col items-center bg-[var(--color-bg)] px-6 py-12 text-[var(--color-text)]">
-      <NavBar />
-      <ul class="flex w-full flex-col gap-3">
-        <For each={notes()}>
-          {(note) => (
-            <NoteItem
-              note={note}
-              tz={props.tz}
-              onShift={(delta) => handleShift(note, delta)}
-            />
-          )}
-        </For>
-      </ul>
-    </div>
+    <ul class="flex w-full flex-col gap-3">
+      <For each={notes()}>
+        {(note) => (
+          <NoteItem
+            note={note}
+            tz={props.tz}
+            onShift={(delta) => handleShift(note, delta)}
+          />
+        )}
+      </For>
+    </ul>
   );
 }
 

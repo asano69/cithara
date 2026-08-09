@@ -1,5 +1,4 @@
 import { onMount, createSignal, Show, For } from "solid-js";
-import NavBar from "../components/NavBar";
 import pb from "../lib/pb";
 
 // Debug view of the scheduler's in-memory next-occurrence calculation for
@@ -78,10 +77,9 @@ function ScheduleDebug() {
 
 export default function Stats() {
   return (
-    <div class="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-8 bg-[var(--color-bg)] px-6 py-12 text-[var(--color-text)]">
-      <NavBar />
+    <>
       <h1 class="font-serif text-4xl">Stats</h1>
       <ScheduleDebug />
-    </div>
+    </>
   );
 }
