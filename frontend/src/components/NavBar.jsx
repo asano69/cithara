@@ -32,7 +32,7 @@ return (
       <div class="flex flex-wrap items-center gap-4">
         <Logo linkable />
         <Show when={tz()}>
-          <span class="text-sm text-[var(--color-border-soft)]">
+          <span>
             {clock()} ({tz()})
           </span>
         </Show>
