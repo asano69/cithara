@@ -1,5 +1,6 @@
 import { createSignal, createMemo, onMount, onCleanup, createResource, For, Show } from "solid-js";
 import { A } from "@solidjs/router";
+import { Hourglass } from "lucide-solid";
 import pb from "../lib/pb";
 import { loadTimezone, localToUtc, utcToLocal, formatNaive } from "../lib/tz";
 import { nextOccurrenceUtcString } from "../lib/rrule";
@@ -91,8 +92,9 @@ function NoteItem(props) {
           <div class="flex items-baseline justify-between gap-2">
             <h2 class="font-serif text-xl">{props.note.label}</h2>
             {remaining() && (
-              <span class="whitespace-nowrap font-mono text-lg font-semibold">
-                ⏳️{remaining()}
+              <span class="flex items-center gap-1 whitespace-nowrap font-serif text-xl">
+                <Hourglass class="h-4 w-4 transition-transform duration-500 hover:rotate-[360deg]" />
+                {remaining()}
               </span>
             )}
           </div>
