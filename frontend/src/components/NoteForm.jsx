@@ -65,7 +65,20 @@ async function nextPosition() {
 // (toDtstartString, extractRRuleLine, toBuilderRRuleString, extractTime は変更なし)
 
 function NoteFormFields(props) {
-  // ... 変更なし（label, description, time, pending, deleting, error）...
+  const navigate = useNavigate();
+  const store = useBuilderStoreContext();
+
+  // Local form state, pre-filled from props.note when editing.
+  const [label, setLabel] = createSignal(props.note?.label ?? "");
+  const [description, setDescription] = createSignal(
+    props.note?.description ?? "",
+  );
+  const [time, setTime] = createSignal(
+    extractTime(utcToLocal(props.note?.dtstart, props.tz)),
+  );
+  const [pending, setPending] = createSignal(false);
+  const [deleting, setDeleting] = createSignal(false);
+  const [error, setError] = createSignal("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
