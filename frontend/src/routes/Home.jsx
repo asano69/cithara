@@ -1,154 +1,10 @@
 import { createSignal, createMemo, onMount, onCleanup, createResource, For, Show } from "solid-js";
-import { A } from "@solidjs/router";
-import { Tooltip } from "@kobalte/core/tooltip";
 import pb from "../lib/pb";
-import Hourglass from "lucide-solid/icons/hourglass";
-import { loadTimezone, localToUtc, utcToLocal, formatNaive } from "../lib/tz";
+import { loadTimezone, localToUtc, utcToLocal } from "../lib/tz";
 import { nextOccurrenceUtcString } from "../lib/rrule";
+import { shiftDtstart, setDtstartToday, parseUtcMs } from "../lib/noteSchedule";
+import NoteCard from "../components/NoteCard";
 
-// Matches the naive local "YYYYMMDDTHHMMSS" format produced by converting
-// a stored UTC dtstart with utcToLocal (see NoteForm.jsx).
-const DTSTART_RE = /^(\d{4})(\d{2})(\d{2})T(\d{6})$/;
-
-// Matches the canonical UTC dtstart/next-occurrence string format
-// ("YYYYMMDDTHHMMSSZ"), used here to compute a countdown and to sort by.
-const UTC_RE = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/;
-
-// Shifts the date part of a naive local dtstart string by `deltaDays`,
-// keeping the time-of-day unchanged. Returns "" if it doesn't match the
-// expected format.
-function shiftDtstart(naiveLocal, deltaDays) {
-  const match = DTSTART_RE.exec(naiveLocal);
-  if (!match) return "";
-  const [, y, mo, d, time] = match;
-  const date = new Date(Date.UTC(Number(y), Number(mo) - 1, Number(d)));
-  date.setUTCDate(date.getUTCDate() + deltaDays);
-  const yy = date.getUTCFullYear();
-  const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(date.getUTCDate()).padStart(2, "0");
-  return `${yy}${mm}${dd}T${time}`;
-}
-
-// Replaces the date part of a naive local dtstart string with today's
-// local calendar date, keeping the time-of-day unchanged.
-function setDtstartToday(naiveLocal) {
-  const match = DTSTART_RE.exec(naiveLocal);
-  const time = match ? match[4] : "000000";
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
-  return `${y}${m}${d}T${time}`;
-}
-
-// Parses a canonical UTC "YYYYMMDDTHHMMSSZ" string into a millisecond
-// timestamp, for sorting and countdown math. Returns null if unparsable.
-function parseUtcMs(utcStr) {
-  const m = UTC_RE.exec(utcStr ?? "");
-  if (!m) return null;
-  const [, y, mo, d, h, mi, s] = m;
-  return Date.UTC(+y, +mo - 1, +d, +h, +mi, +s);
-}
-
-// Formats the time remaining until a canonical UTC "YYYYMMDDTHHMMSSZ"
-// string, as "Xd Yh Zm". referenceMs lets callers pass a reactive "now"
-// signal so the countdown updates live. Returns "" if utcStr is empty,
-// unparsable, or already in the past.
-function formatRemaining(utcStr, referenceMs) {
-  const targetMs = parseUtcMs(utcStr);
-  if (targetMs === null) return "";
-
-  const diffMs = targetMs - referenceMs;
-  if (diffMs <= 0) return "";
-
-  const totalMinutes = Math.floor(diffMs / 60000);
-  const days = Math.floor(totalMinutes / (24 * 60));
-  const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
-  const minutes = totalMinutes % 60;
-
-  const parts = [];
-  if (days > 0) parts.push(`${days}d`);
-  if (days > 0 || hours > 0) parts.push(`${hours}h`);
-  parts.push(`${minutes}m`);
-  return parts.join(" ");
-}
-
-function NoteItem(props) {
-  const [now, setNow] = createSignal(Date.now());
-  onMount(() => {
-    const intervalId = setInterval(() => setNow(Date.now()), 60000);
-    onCleanup(() => clearInterval(intervalId));
-  });
-
-  const nextUtc = createMemo(() => {
-    now();
-    return nextOccurrenceUtcString(props.note.dtstart, props.note.rrule);
-  });
-  const remaining = createMemo(() => formatRemaining(nextUtc(), now()));
-
-  return (
-    <li class="flex items-start gap-3 rounded-md border border-[var(--color-border-soft)] bg-[var(--color-field)] p-4 shadow-[0_1px_3px_0_var(--color-shadow)]">
-      <div class="flex flex-1 flex-col gap-2">
-        <div>
-          <div class="flex items-baseline justify-between gap-2">
-            {/* Description shows as a tooltip on hover/focus of the title;
-                notes without a description just render a plain h2. */}
-            <Show
-              when={props.note.description}
-              fallback={<h2 class="font-serif text-xl">{props.note.label}</h2>}
-            >
-              <Tooltip>
-                <Tooltip.Trigger
-                  as="h2"
-                  tabIndex={0}
-                  class="cursor-default font-serif text-xl focus:outline-none"
-                >
-                  {props.note.label}
-                </Tooltip.Trigger>
-                <Tooltip.Portal>
-                  <Tooltip.Content class="max-w-xs rounded-md border border-[var(--color-border-soft)] bg-[var(--color-field)] px-3 py-2 text-sm text-[var(--color-text)] shadow-[0_1px_3px_0_var(--color-shadow)]">
-                    <Tooltip.Arrow />
-                    {props.note.description}
-                  </Tooltip.Content>
-                </Tooltip.Portal>
-              </Tooltip>
-            </Show>
-            {remaining() && (
-              <span class="flex items-center gap-1 whitespace-nowrap font-serif text-xl">
-                <Hourglass class="h-4 w-4 transition-transform duration-500 hover:rotate-[360deg]" />
-                {remaining()}
-              </span>
-            )}
-          </div>
-  
-          <div class="mt-1 flex flex-col gap-0.5 font-mono text-xs text-[var(--color-border-soft)]">
-            <span>
-              Next: {formatNaive(utcToLocal(nextUtc(), props.tz)) || "—"}
-            </span>
-            <span>
-              Base: {formatNaive(utcToLocal(props.note.dtstart, props.tz))}
-            </span>
-          </div>
-        </div>
-
-        <div class="flex flex-wrap gap-2">
-          <button type="button" class="btn" onClick={() => props.onShift(-1)}>
-            -1 day
-          </button>
-          <button type="button" class="btn" onClick={() => props.onShift(0)}>
-            Today
-          </button>
-          <button type="button" class="btn" onClick={() => props.onShift(1)}>
-            +1 day
-          </button>
-          <A href={`/edit/${props.note.id}`} class="btn">
-            Edit
-          </A>
-        </div>
-      </div>
-    </li>
-  );
-}
 function HomeContent(props) {
   const [notes, setNotes] = createSignal([]);
   const [now, setNow] = createSignal(Date.now());
@@ -204,10 +60,9 @@ function HomeContent(props) {
     <ul class="flex w-full flex-col gap-3">
       <For each={sortedNotes()}>
         {(note) => (
-          <NoteItem
+          <NoteCard
             note={note}
             tz={props.tz}
-            now={now}
             onShift={(delta) => handleShift(note, delta)}
           />
         )}
