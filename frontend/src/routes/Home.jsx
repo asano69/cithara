@@ -9,7 +9,7 @@ import { nextOccurrenceUtcString } from "../lib/rrule";
 const DTSTART_RE = /^(\d{4})(\d{2})(\d{2})T(\d{6})$/;
 
 // Matches the canonical UTC dtstart/next-occurrence string format
-// ("YYYYMMDDTHHMMSSZ"), used here to compute a countdown.
+// ("YYYYMMDDTHHMMSSZ"), used here to compute a countdown and to sort by.
 const UTC_RE = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/;
 
 // Shifts the date part of a naive local dtstart string by `deltaDays`,
@@ -39,17 +39,24 @@ function setDtstartToday(naiveLocal) {
   return `${y}${m}${d}T${time}`;
 }
 
+// Parses a canonical UTC "YYYYMMDDTHHMMSSZ" string into a millisecond
+// timestamp, for sorting and countdown math. Returns null if unparsable.
+function parseUtcMs(utcStr) {
+  const m = UTC_RE.exec(utcStr ?? "");
+  if (!m) return null;
+  const [, y, mo, d, h, mi, s] = m;
+  return Date.UTC(+y, +mo - 1, +d, +h, +mi, +s);
+}
+
 // Formats the time remaining until a canonical UTC "YYYYMMDDTHHMMSSZ"
 // string, as "Xd Yh Zm". referenceMs lets callers pass a reactive "now"
 // signal so the countdown updates live. Returns "" if utcStr is empty,
 // unparsable, or already in the past.
 function formatRemaining(utcStr, referenceMs) {
-  const m = UTC_RE.exec(utcStr ?? "");
-  if (!m) return "";
+  const targetMs = parseUtcMs(utcStr);
+  if (targetMs === null) return "";
 
-  const [, y, mo, d, h, mi, s] = m;
-  const target = new Date(Date.UTC(+y, +mo - 1, +d, +h, +mi, +s));
-  const diffMs = target.getTime() - referenceMs;
+  const diffMs = targetMs - referenceMs;
   if (diffMs <= 0) return "";
 
   const totalMinutes = Math.floor(diffMs / 60000);
@@ -65,17 +72,11 @@ function formatRemaining(utcStr, referenceMs) {
 }
 
 function NoteItem(props) {
-  const [now, setNow] = createSignal(Date.now());
-  onMount(() => {
-    const intervalId = setInterval(() => setNow(Date.now()), 60000);
-    onCleanup(() => clearInterval(intervalId));
-  });
-
   const nextUtc = createMemo(() => {
-    now();
+    props.now();
     return nextOccurrenceUtcString(props.note.dtstart, props.note.rrule);
   });
-  const remaining = createMemo(() => formatRemaining(nextUtc(), now()));
+  const remaining = createMemo(() => formatRemaining(nextUtc(), props.now()));
 
   return (
     <li class="flex items-start gap-3 rounded-md border border-[var(--color-border-soft)] bg-[var(--color-field)] p-4 shadow-[0_1px_3px_0_var(--color-shadow)]">
@@ -120,6 +121,12 @@ function NoteItem(props) {
 
 function HomeContent(props) {
   const [notes, setNotes] = createSignal([]);
+  const [now, setNow] = createSignal(Date.now());
+
+  onMount(() => {
+    const intervalId = setInterval(() => setNow(Date.now()), 60000);
+    onCleanup(() => clearInterval(intervalId));
+  });
 
   const loadNotes = async () => {
     const list = await pb.collection("notes").getFullList({ sort: "created" });
@@ -127,6 +134,25 @@ function HomeContent(props) {
   };
 
   onMount(loadNotes);
+
+  // Always keeps the list ordered by soonest next occurrence, so it stays
+  // correct both after edits and as time passes and "now" ticks forward.
+  // Notes with no more occurrences sort to the end.
+  const sortedNotes = createMemo(() => {
+    now();
+    return [...notes()]
+      .map((note) => ({
+        note,
+        nextMs: parseUtcMs(nextOccurrenceUtcString(note.dtstart, note.rrule)),
+      }))
+      .sort((a, b) => {
+        if (a.nextMs === null && b.nextMs === null) return 0;
+        if (a.nextMs === null) return 1;
+        if (b.nextMs === null) return -1;
+        return a.nextMs - b.nextMs;
+      })
+      .map((entry) => entry.note);
+  });
 
   // Shifts a note's dtstart by deltaDays (0 means "jump to today"). The
   // stored value is UTC, so it's converted to naive local, shifted, and
@@ -146,11 +172,12 @@ function HomeContent(props) {
 
   return (
     <ul class="flex w-full flex-col gap-3">
-      <For each={notes()}>
+      <For each={sortedNotes()}>
         {(note) => (
           <NoteItem
             note={note}
             tz={props.tz}
+            now={now}
             onShift={(delta) => handleShift(note, delta)}
           />
         )}

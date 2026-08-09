@@ -14,6 +14,17 @@
 - Don't persist changes to the database during drilling. Use the cache.
 - Don't use timezones: dates are naive for a reason. Due dates etc. are more like the dates in a journal entry than precise points in time.
 
+- 変更内容を Codex形式(Search/Replace形式)で出力してください。例）
+```
+mathweb/flask/app.py
+<<<<<<< SEARCH
+from flask import Flask
+=======
+import math
+from flask import Flask
+>>>>>>> REPLACE
+```
+
 ## Work in Progress
 - フロントエンドからpb.jsクライアントを介して、エントリを作成し保存できるようにする
 - RRule式を評価して、通知をテストしてみる。
