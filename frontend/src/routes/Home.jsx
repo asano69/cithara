@@ -72,17 +72,30 @@ function formatRemaining(utcStr, referenceMs) {
 }
 
 function NoteItem(props) {
+  const [now, setNow] = createSignal(Date.now());
+  onMount(() => {
+    const intervalId = setInterval(() => setNow(Date.now()), 60000);
+    onCleanup(() => clearInterval(intervalId));
+  });
+
   const nextUtc = createMemo(() => {
-    props.now();
+    now();
     return nextOccurrenceUtcString(props.note.dtstart, props.note.rrule);
   });
-  const remaining = createMemo(() => formatRemaining(nextUtc(), props.now()));
+  const remaining = createMemo(() => formatRemaining(nextUtc(), now()));
 
   return (
     <li class="flex items-start gap-3 rounded-md border border-[var(--color-border-soft)] bg-[var(--color-field)] p-4 shadow-[0_1px_3px_0_var(--color-shadow)]">
       <div class="flex flex-1 flex-col gap-2">
         <div>
-          <h2 class="font-serif text-xl">{props.note.label}</h2>
+          <div class="flex items-baseline justify-between gap-2">
+            <h2 class="font-serif text-xl">{props.note.label}</h2>
+            {remaining() && (
+              <span class="whitespace-nowrap font-mono text-lg font-semibold">
+                ⏳️{remaining()}
+              </span>
+            )}
+          </div>
           {props.note.description && (
             <p class="text-sm text-[var(--color-border-soft)]">
               {props.note.description}
@@ -90,9 +103,7 @@ function NoteItem(props) {
           )}
           <div class="mt-1 flex flex-col gap-0.5 font-mono text-xs text-[var(--color-border-soft)]">
             <span>
-              Next:{" "}
-              {formatNaive(utcToLocal(nextUtc(), props.tz)) || "—"}
-              {remaining() && ` (⏳️${remaining()})`}
+              Next: {formatNaive(utcToLocal(nextUtc(), props.tz)) || "—"}
             </span>
             <span>
               Base: {formatNaive(utcToLocal(props.note.dtstart, props.tz))}
@@ -118,7 +129,6 @@ function NoteItem(props) {
     </li>
   );
 }
-
 function HomeContent(props) {
   const [notes, setNotes] = createSignal([]);
   const [now, setNow] = createSignal(Date.now());
