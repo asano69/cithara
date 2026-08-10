@@ -10,6 +10,7 @@ import { nextOccurrenceUtcString } from "../lib/rrule";
 import { shiftDtstart, setDtstartToday, parseUtcMs } from "../lib/noteSchedule";
 import { pushShift, undoShift, redoShift } from "../lib/shiftHistory";
 import { loadSortMode, saveSortMode } from "../lib/sortMode";
+import { showToast } from "../lib/toast";
 import NoteCard from "../components/NoteCard";
 
 function HomeContent(props) {
@@ -63,6 +64,7 @@ function HomeContent(props) {
       if (next === null) return;
       setPointer(next);
       await loadNotes();
+      showToast("Undo successful.");
     } catch (err) {
       console.error("undo failed:", err?.response ?? err);
       setHistoryError(err?.response?.message ?? "Failed to undo.");
@@ -76,6 +78,7 @@ function HomeContent(props) {
       if (next === null) return;
       setPointer(next);
       await loadNotes();
+      showToast("Redo successful.");
     } catch (err) {
       console.error("redo failed:", err?.response ?? err);
       setHistoryError(err?.response?.message ?? "Failed to redo.");
@@ -133,6 +136,13 @@ function HomeContent(props) {
       setHistory(result.entries);
       setPointer(result.pointer);
       await loadNotes();
+      const message =
+        deltaDays === 0
+          ? "Reset to today."
+          : deltaDays > 0
+            ? "Shifted +1 day."
+            : "Shifted -1 day.";
+      showToast(message);
     } catch (err) {
       console.error("shift failed:", err?.response ?? err);
       setHistoryError(err?.response?.message ?? "Failed to shift the date.");

@@ -1,4 +1,5 @@
 import NavBar from "../NavBar";
+import Toaster from "../Toaster";
 
 // Wraps every route so NavBar renders once regardless of page (it's
 // global chrome, not something that should vary per route). Passed as
@@ -10,6 +11,7 @@ export default function AppShell(props) {
     <div class="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-8 bg-[var(--color-bg)] px-6 py-12 text-[var(--color-text)]">
       <NavBar />
       {props.children}
+      <Toaster />
     </div>
   );
 }
