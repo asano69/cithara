@@ -12,6 +12,7 @@ import {
   formatRemaining,
   computeCycleRemainingFraction,
 } from "../lib/noteSchedule";
+import { priorityToHsl } from "../lib/priorityColor";
 
 export default function NoteCard(props) {
   const [now, setNow] = createSignal(Date.now());
@@ -50,8 +51,16 @@ export default function NoteCard(props) {
   });
 
   return (
-    <li class="flex items-start gap-1 rounded-md border border-[var(--color-border-soft)] bg-[var(--color-field)] p-3 shadow-[0_1px_3px_0_var(--color-shadow)]">
-      <div class="flex flex-1 flex-col gap-1">
+    <li class="flex items-stretch overflow-hidden rounded-md border border-[var(--color-border-soft)] bg-[var(--color-field)] shadow-[0_1px_3px_0_var(--color-shadow)]">
+      {/* Priority indicator: gray (low) -> yellow -> red (high), flush
+          against the card's left edge (no gap/padding). See
+          lib/priorityColor.js for the color mapping. */}
+      <div
+        class="w-1.5 shrink-0"
+        style={{ "background-color": priorityToHsl(props.note.priority) }}
+        aria-hidden="true"
+      />
+      <div class="flex flex-1 flex-col gap-1 p-3">
         <div>
           <div class="flex items-baseline justify-between gap-1">
             {/* Description shows as a tooltip on hover/focus of the title;
