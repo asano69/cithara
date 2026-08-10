@@ -2,6 +2,9 @@
 // RRuleBuilder for the recurrence rule and saves directly to PocketBase.
 import { createSignal, createResource, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
+import { TextField } from "@kobalte/core/text-field";
+import { Slider } from "@kobalte/core/slider";
+import { Button } from "@kobalte/core/button";
 import RRuleBuilder from "./RRuleBuilder/RRuleBuilder";
 import { BuilderStoreProvider, useBuilderStoreContext } from "../lib/rrule";
 import { loadTimezone, localToUtc, utcToLocal } from "../lib/tz";
@@ -139,27 +142,30 @@ function NoteFormFields(props) {
 
   return (
     <form onSubmit={handleSubmit} class="flex w-full flex-col gap-6">
-      <label class="flex flex-col gap-1 text-sm">
-        <span>Label</span>
-        <input
-          type="text"
-          value={label()}
-          onInput={(e) => setLabel(e.target.value)}
-          required
+      <TextField
+        value={label()}
+        onChange={setLabel}
+        required
+        class="flex flex-col gap-1 text-sm"
+      >
+        <TextField.Label>Label</TextField.Label>
+        <TextField.Input
           autofocus
           class="rounded-md border border-[var(--color-border-soft)] bg-[var(--color-bg)] px-2 py-1 text-[var(--color-text)]"
         />
-      </label>
+      </TextField>
 
-      <label class="flex flex-col gap-1 text-sm">
-        <span>Description</span>
-        <textarea
-          value={description()}
-          onInput={(e) => setDescription(e.target.value)}
+      <TextField
+        value={description()}
+        onChange={setDescription}
+        class="flex flex-col gap-1 text-sm"
+      >
+        <TextField.Label>Description</TextField.Label>
+        <TextField.TextArea
           rows="3"
           class="rounded-md border border-[var(--color-border-soft)] bg-[var(--color-bg)] px-2 py-1 text-[var(--color-text)]"
         />
-      </label>
+      </TextField>
 
       <RRuleBuilder
         enableYearlyInterval
@@ -181,34 +187,41 @@ function NoteFormFields(props) {
         />
       </label>
 
-      <label class="flex flex-col gap-1 text-sm">
-        <span>Notification priority: {priority()}</span>
-        <input
-          type="range"
-          min="0"
-          max="10"
-          step="1"
-          value={priority()}
-          onInput={(e) => setPriority(Number(e.target.value))}
-          class="w-full"
-        />
-      </label>
+      <Slider
+        minValue={0}
+        maxValue={10}
+        step={1}
+        value={[priority()]}
+        onChange={(value) => setPriority(value[0])}
+        class="flex flex-col gap-1 text-sm"
+      >
+        <div class="flex justify-between">
+          <Slider.Label>Notification priority</Slider.Label>
+          <Slider.ValueLabel />
+        </div>
+        <Slider.Track class="relative h-1.5 w-full rounded-full bg-[var(--color-muted)]">
+          <Slider.Fill class="absolute h-full rounded-full bg-[var(--color-progress)]" />
+          <Slider.Thumb class="-top-1.5 h-4 w-4 rounded-full border border-[var(--color-border-soft)] bg-[var(--color-field)] shadow-[0_1px_3px_0_var(--color-shadow)]">
+            <Slider.Input />
+          </Slider.Thumb>
+        </Slider.Track>
+      </Slider>
 
       {error() && <p class="text-sm text-[#dc3545]">{error()}</p>}
 
       <div class="flex flex-wrap items-center">
-        <button type="submit" class="btn" disabled={pending() || deleting()}>
+        <Button type="submit" class="btn" disabled={pending() || deleting()}>
           {pending() ? "Saving…" : "Save"}
-        </button>
+        </Button>
         {props.note && (
-          <button
+          <Button
             type="button"
             class="btn text-white shadow-[0_1px_3px_0_rgb(220_53_69_/_0.3)] border border-[#c82333] bg-[#dc3545] enabled:hover:bg-[#c82333] enabled:hover:border-[#c82333] enabled:active:bg-[#bd2130] enabled:active:border-[#bd2130]"
             disabled={pending() || deleting()}
             onClick={handleDelete}
           >
             {deleting() ? "Deleting…" : "Delete"}
-          </button>
+          </Button>
         )}
       </div>
     </form>
