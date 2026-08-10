@@ -1,13 +1,19 @@
 import { createSignal, createMemo, onMount, onCleanup, createResource, For, Show } from "solid-js";
+import Undo from "lucide-solid/icons/undo";
+import Redo from "lucide-solid/icons/redo";
 import pb from "../lib/pb";
 import { loadTimezone, localToUtc, utcToLocal } from "../lib/tz";
 import { nextOccurrenceUtcString } from "../lib/rrule";
 import { shiftDtstart, setDtstartToday, parseUtcMs } from "../lib/noteSchedule";
+import { loadShiftHistory, pushShift, undoShift, redoShift } from "../lib/shiftHistory";
 import NoteCard from "../components/NoteCard";
 
 function HomeContent(props) {
   const [notes, setNotes] = createSignal([]);
   const [now, setNow] = createSignal(Date.now());
+  const [history, setHistory] = createSignal([]);
+  const [pointer, setPointer] = createSignal(0);
+  const [historyError, setHistoryError] = createSignal("");
 
   onMount(() => {
     const intervalId = setInterval(() => setNow(Date.now()), 60000);
@@ -19,7 +25,43 @@ function HomeContent(props) {
     setNotes(list);
   };
 
+  const loadHistory = async () => {
+    const { entries, pointer: p } = await loadShiftHistory();
+    setHistory(entries);
+    setPointer(p);
+  };
+
   onMount(loadNotes);
+  onMount(loadHistory);
+
+  const canUndo = () => pointer() > 0;
+  const canRedo = () => pointer() < history().length;
+
+  const handleUndo = async () => {
+    setHistoryError("");
+    try {
+      const next = await undoShift(history(), pointer());
+      if (next === null) return;
+      setPointer(next);
+      await loadNotes();
+    } catch (err) {
+      console.error("undo failed:", err?.response ?? err);
+      setHistoryError(err?.response?.message ?? "Failed to undo.");
+    }
+  };
+
+  const handleRedo = async () => {
+    setHistoryError("");
+    try {
+      const next = await redoShift(history(), pointer());
+      if (next === null) return;
+      setPointer(next);
+      await loadNotes();
+    } catch (err) {
+      console.error("redo failed:", err?.response ?? err);
+      setHistoryError(err?.response?.message ?? "Failed to redo.");
+    }
+  };
 
   // Always keeps the list ordered by soonest next occurrence, so it stays
   // correct both after edits and as time passes and "now" ticks forward.
@@ -42,7 +84,8 @@ function HomeContent(props) {
 
   // Shifts a note's dtstart by deltaDays (0 means "jump to today"). The
   // stored value is UTC, so it's converted to naive local, shifted, and
-  // converted back before saving.
+  // converted back before saving. The shift is recorded in the shared
+  // undo/redo history via pushShift.
   const handleShift = async (note, deltaDays) => {
     const naiveLocal = utcToLocal(note.dtstart, props.tz);
     const shifted =
@@ -50,24 +93,61 @@ function HomeContent(props) {
         ? setDtstartToday(naiveLocal)
         : shiftDtstart(naiveLocal, deltaDays);
     if (!shifted) return;
-    await pb.collection("notes").update(note.id, {
-      dtstart: localToUtc(shifted, props.tz),
-    });
-    await loadNotes();
+
+    setHistoryError("");
+    try {
+      const result = await pushShift(history(), pointer(), {
+        note: note.id,
+        prevDtstart: note.dtstart,
+        newDtstart: localToUtc(shifted, props.tz),
+      });
+      setHistory(result.entries);
+      setPointer(result.pointer);
+      await loadNotes();
+    } catch (err) {
+      console.error("shift failed:", err?.response ?? err);
+      setHistoryError(err?.response?.message ?? "Failed to shift the date.");
+    }
   };
 
   return (
-    <ul class="flex w-full flex-col gap-3">
-      <For each={sortedNotes()}>
-        {(note) => (
-          <NoteCard
-            note={note}
-            tz={props.tz}
-            onShift={(delta) => handleShift(note, delta)}
-          />
+    <div class="flex w-full flex-col gap-3">
+      <div class="flex items-center gap-2">
+        <button
+          type="button"
+          class="btn"
+          onClick={handleUndo}
+          disabled={!canUndo()}
+          aria-label="Undo"
+        >
+          <Undo class="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          class="btn"
+          onClick={handleRedo}
+          disabled={!canRedo()}
+          aria-label="Redo"
+        >
+          <Redo class="h-4 w-4" />
+        </button>
+        {historyError() && (
+          <p class="text-sm text-[#dc3545]">{historyError()}</p>
         )}
-      </For>
-    </ul>
+      </div>
+
+      <ul class="flex w-full flex-col gap-3">
+        <For each={sortedNotes()}>
+          {(note) => (
+            <NoteCard
+              note={note}
+              tz={props.tz}
+              onShift={(delta) => handleShift(note, delta)}
+            />
+          )}
+        </For>
+      </ul>
+    </div>
   );
 }
 
