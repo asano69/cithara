@@ -5,7 +5,7 @@ import pb from "../lib/pb";
 import { loadTimezone, localToUtc, utcToLocal } from "../lib/tz";
 import { nextOccurrenceUtcString } from "../lib/rrule";
 import { shiftDtstart, setDtstartToday, parseUtcMs } from "../lib/noteSchedule";
-import { loadShiftHistory, pushShift, undoShift, redoShift } from "../lib/shiftHistory";
+import { pushShift, undoShift, redoShift } from "../lib/shiftHistory";
 import NoteCard from "../components/NoteCard";
 
 function HomeContent(props) {
@@ -25,14 +25,7 @@ function HomeContent(props) {
     setNotes(list);
   };
 
-  const loadHistory = async () => {
-    const { entries, pointer: p } = await loadShiftHistory();
-    setHistory(entries);
-    setPointer(p);
-  };
-
   onMount(loadNotes);
-  onMount(loadHistory);
 
   const canUndo = () => pointer() > 0;
   const canRedo = () => pointer() < history().length;
