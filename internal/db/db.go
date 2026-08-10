@@ -8,6 +8,7 @@ import (
 	_ "github.com/asano69/cithara/migrations"
 
 	"github.com/pocketbase/pocketbase"
+	"github.com/pocketbase/pocketbase/core"
 
 	"os"
 )
@@ -134,4 +135,64 @@ func (d *Database) ListNotificationTargets() ([]NotificationTarget, error) {
 		})
 	}
 	return targets, nil
+}
+
+// NotificationLogEntry is one persisted delivery attempt, used to render
+// the notification timeline. NoteID/Label are stored as a snapshot rather
+// than a relation, so history survives the note being edited or deleted.
+type NotificationLogEntry struct {
+	ID       string `json:"id"`
+	NoteID   string `json:"noteId"`
+	Label    string `json:"label"`
+	Body     string `json:"body"`
+	Provider string `json:"provider"`
+	Success  bool   `json:"success"`
+	Error    string `json:"error"`
+	Created  string `json:"created"`
+}
+
+// RecordNotification appends one delivery attempt to the
+// notification_history collection.
+func (d *Database) RecordNotification(entry NotificationLogEntry) error {
+	collection, err := d.app.FindCollectionByNameOrId("notification_history")
+	if err != nil {
+		return errs.Newf("find notification_history collection: %v", err)
+	}
+
+	record := core.NewRecord(collection)
+	record.Set("noteId", entry.NoteID)
+	record.Set("label", entry.Label)
+	record.Set("body", entry.Body)
+	record.Set("provider", entry.Provider)
+	record.Set("success", entry.Success)
+	record.Set("error", entry.Error)
+
+	if err := d.app.Save(record); err != nil {
+		return errs.Newf("save notification history: %v", err)
+	}
+	return nil
+}
+
+// ListNotificationHistory returns the most recent delivery attempts,
+// newest first, for the timeline view.
+func (d *Database) ListNotificationHistory(limit int) ([]NotificationLogEntry, error) {
+	records, err := d.app.FindRecordsByFilter("notification_history", "", "-created", limit, 0)
+	if err != nil {
+		return nil, errs.Newf("list notification history: %v", err)
+	}
+
+	entries := make([]NotificationLogEntry, 0, len(records))
+	for _, r := range records {
+		entries = append(entries, NotificationLogEntry{
+			ID:       r.Id,
+			NoteID:   r.GetString("noteId"),
+			Label:    r.GetString("label"),
+			Body:     r.GetString("body"),
+			Provider: r.GetString("provider"),
+			Success:  r.GetBool("success"),
+			Error:    r.GetString("error"),
+			Created:  r.GetString("created"),
+		})
+	}
+	return entries, nil
 }

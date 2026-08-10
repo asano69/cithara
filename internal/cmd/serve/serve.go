@@ -90,6 +90,14 @@ func Run(app *pocketbase.PocketBase, cfg *config.Config) error {
 			return re.JSON(http.StatusOK, sched.Snapshot())
 		}).Bind(apis.RequireSuperuserAuth())
 
+		e.Router.GET("/api/notifications/history", func(re *core.RequestEvent) error {
+			entries, err := database.ListNotificationHistory(100)
+			if err != nil {
+				return apis.NewBadRequestError(err.Error(), nil)
+			}
+			return re.JSON(http.StatusOK, entries)
+		}).Bind(apis.RequireSuperuserAuth())
+
 		return e.Next()
 	})
 

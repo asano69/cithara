@@ -248,7 +248,8 @@ func buildMessageBody(note db.Note) string {
 
 // notify sends note's message to every configured Gotify target, logging
 // (rather than failing) any delivery error so one broken connection
-// doesn't stop the others from receiving it.
+// doesn't stop the others from receiving it. Every attempt, successful or
+// not, is recorded for the notification timeline.
 func (s *Scheduler) notify(note db.Note, targets []db.NotificationTarget) {
 	msg := notify.Message{
 		Title:    buildMessageTitle(note),
@@ -260,12 +261,37 @@ func (s *Scheduler) notify(note db.Note, targets []db.NotificationTarget) {
 		if t.Provider != "gotify" {
 			continue
 		}
-		if err := notify.SendGotify(t.Endpoint, t.Token, msg); err != nil {
-			logrus.WithError(err).WithFields(logrus.Fields{
+
+		sendErr := notify.SendGotify(t.Endpoint, t.Token, msg)
+		if sendErr != nil {
+			logrus.WithError(sendErr).WithFields(logrus.Fields{
 				"note":   note.ID,
 				"target": t.ID,
 			}).Error("scheduler: notification delivery failed")
 		}
+
+		s.recordHistory(note, msg, t.Provider, sendErr)
+	}
+}
+
+// recordHistory persists one delivery attempt for the notification
+// timeline. A failure to write history is only logged -- it must never
+// affect notification delivery itself.
+func (s *Scheduler) recordHistory(note db.Note, msg notify.Message, provider string, sendErr error) {
+	entry := db.NotificationLogEntry{
+		NoteID:   note.ID,
+		Label:    note.Label,
+		Body:     msg.Body,
+		Provider: provider,
+		Success:  sendErr == nil,
+	}
+	if sendErr != nil {
+		entry.Error = sendErr.Error()
+	}
+
+	if err := s.db.RecordNotification(entry); err != nil {
+		logrus.WithError(err).WithField("note", note.ID).
+			Error("scheduler: failed to record notification history")
 	}
 }
 
