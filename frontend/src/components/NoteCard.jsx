@@ -50,10 +50,10 @@ export default function NoteCard(props) {
   });
 
   return (
-    <li class="flex items-start gap-3 rounded-md border border-[var(--color-border-soft)] bg-[var(--color-field)] p-4 shadow-[0_1px_3px_0_var(--color-shadow)]">
-      <div class="flex flex-1 flex-col gap-2">
+    <li class="flex items-start gap-1 rounded-md border border-[var(--color-border-soft)] bg-[var(--color-field)] p-3 shadow-[0_1px_3px_0_var(--color-shadow)]">
+      <div class="flex flex-1 flex-col gap-1">
         <div>
-          <div class="flex items-baseline justify-between gap-2">
+          <div class="flex items-baseline justify-between gap-1">
             {/* Description shows as a tooltip on hover/focus of the title;
                 notes without a description just render a plain h2. */}
             <Show
@@ -77,7 +77,7 @@ export default function NoteCard(props) {
               </Tooltip>
             </Show>
             {remaining() && (
-              <span class="flex items-center gap-1 whitespace-nowrap font-serif text-xl">
+              <span class="flex items-center gap-1 whitespace-nowrap font-serif text-lg">
                 <Hourglass class="h-4 w-4 transition-transform duration-500 hover:rotate-[360deg]" />
                 {remaining()}
               </span>
@@ -95,7 +95,8 @@ export default function NoteCard(props) {
             </Progress>
           </Show>
 
-          <div class="mt-1 flex flex-col gap-0.5 font-mono text-xs text-[var(--color-border-soft)]">
+          <div class="mt-1 flex flex-col gap-0.5 font-mono text-sm">
+            <span>RRULE: {props.note.rrule || "—"}</span>
             <span>
               Next: {formatNaive(utcToLocal(nextUtc(), props.tz)) || "—"}
             </span>
