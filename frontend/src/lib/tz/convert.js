@@ -88,3 +88,39 @@ export function formatNowInTz(tzId) {
   const p = partsInTz(new Date(), tzId);
   return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}:${p.second}`;
 }
+
+// Shared by isSameLocalDay / isYesterdayLocalDay: checks whether utcStr
+// falls on the calendar day that is `dayShift` days away (in tzId) from
+// referenceDate. dayShift 0 = same day, -1 = the day before.
+function isLocalDayShift(utcStr, tzId, dayShift, referenceDate) {
+  const m = UTC_RE.exec(utcStr ?? "");
+  if (!m) return false;
+
+  const [, y, mo, d, h, mi, s] = m;
+  const instant = new Date(Date.UTC(+y, +mo - 1, +d, +h, +mi, +s));
+  const target = partsInTz(instant, tzId);
+
+  const shifted = new Date(referenceDate.getTime() + dayShift * 86400000);
+  const shiftedParts = partsInTz(shifted, tzId);
+
+  return (
+    target.year === shiftedParts.year &&
+    target.month === shiftedParts.month &&
+    target.day === shiftedParts.day
+  );
+}
+
+// Returns true if a canonical UTC dtstart-format string ("YYYYMMDDTHHMMSSZ")
+// falls on the same calendar day, in tzId, as referenceDate (defaults to
+// now). Used to highlight entries due today (e.g. NoteCard's Base/Last/Next
+// fields). Returns false for empty or non-matching input.
+export function isSameLocalDay(utcStr, tzId, referenceDate = new Date()) {
+  return isLocalDayShift(utcStr, tzId, 0, referenceDate);
+}
+
+// Returns true if utcStr falls on the calendar day immediately before
+// referenceDate (defaults to now), in tzId. Used to highlight entries from
+// yesterday (e.g. NoteCard's Base/Last/Next fields).
+export function isYesterdayLocalDay(utcStr, tzId, referenceDate = new Date()) {
+  return isLocalDayShift(utcStr, tzId, -1, referenceDate);
+}

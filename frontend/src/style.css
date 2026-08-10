@@ -26,6 +26,9 @@
   /* ---custom ---*/
   --color-progress: #999999;
   --color-muted: #e5e5e5;
+  /* Highlight colors for dates falling today/yesterday (see NoteCard). */
+  --color-today: #dc3545;
+  --color-yesterday: #0d6efd;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -46,6 +49,10 @@
     /* ---custom ---*/
     --color-progress: #999999;
     --color-muted: #202020;
+    /* Lighter tints than the light-mode values, for contrast against a
+       dark background (matches Bootstrap's dark-mode danger/primary). */
+    --color-today: #ff6b6b;
+    --color-yesterday: #6ea8fe;
   }
 }
 

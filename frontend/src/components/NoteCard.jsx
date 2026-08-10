@@ -6,7 +6,7 @@ import { A } from "@solidjs/router";
 import { Tooltip } from "@kobalte/core/tooltip";
 import { Progress } from "@kobalte/core/progress";
 import Hourglass from "lucide-solid/icons/hourglass";
-import { utcToLocal, formatNaive } from "../lib/tz";
+import { utcToLocal, formatNaive, isSameLocalDay, isYesterdayLocalDay } from "../lib/tz";
 import { nextOccurrenceUtcString, currentCycleUtcStrings } from "../lib/rrule";
 import {
   formatRemaining,
@@ -106,13 +106,52 @@ export default function NoteCard(props) {
 
           <div class="mt-1 flex flex-col gap-0.5 font-mono text-sm">
             <span>RRULE: {props.note.rrule || "—"}</span>
-            <span>
+            <span
+              classList={{
+                "text-[var(--color-today)]": isSameLocalDay(
+                  nextUtc(),
+                  props.tz,
+                  new Date(now()),
+                ),
+                "text-[var(--color-yesterday)]": isYesterdayLocalDay(
+                  nextUtc(),
+                  props.tz,
+                  new Date(now()),
+                ),
+              }}
+            >
               Next: {formatNaive(utcToLocal(nextUtc(), props.tz)) || "—"}
             </span>
-            <span>
+            <span
+              classList={{
+                "text-[var(--color-today)]": isSameLocalDay(
+                  props.note.dtstart,
+                  props.tz,
+                  new Date(now()),
+                ),
+                "text-[var(--color-yesterday)]": isYesterdayLocalDay(
+                  props.note.dtstart,
+                  props.tz,
+                  new Date(now()),
+                ),
+              }}
+            >
               Base: {formatNaive(utcToLocal(props.note.dtstart, props.tz))}
             </span>
-            <span>
+            <span
+              classList={{
+                "text-[var(--color-today)]": isSameLocalDay(
+                  props.note.lastNotified,
+                  props.tz,
+                  new Date(now()),
+                ),
+                "text-[var(--color-yesterday)]": isYesterdayLocalDay(
+                  props.note.lastNotified,
+                  props.tz,
+                  new Date(now()),
+                ),
+              }}
+            >
               Last:{" "}
               {props.note.lastNotified
                 ? formatNaive(utcToLocal(props.note.lastNotified, props.tz))
