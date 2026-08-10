@@ -7,14 +7,19 @@ import { Tooltip } from "@kobalte/core/tooltip";
 import { Progress } from "@kobalte/core/progress";
 import Hourglass from "lucide-solid/icons/hourglass";
 import { utcToLocal, formatNaive } from "../lib/tz";
-import { nextOccurrenceUtcString } from "../lib/rrule";
-import { formatRemaining, computeProgressFraction } from "../lib/noteSchedule";
+import { nextOccurrenceUtcString, currentCycleUtcStrings } from "../lib/rrule";
+import {
+  formatRemaining,
+  computeCycleRemainingFraction,
+} from "../lib/noteSchedule";
 
 export default function NoteCard(props) {
   const [now, setNow] = createSignal(Date.now());
   onMount(() => {
-    // Ticks every second so the progress bar (which can span as little as
-    // a minute) moves smoothly instead of jumping once a minute.
+    // Ticks every second. Both the remaining-time text and the progress
+    // bar are recomputed off this same clock, so a cycle boundary (the
+    // bar reaching 0%) is picked up on the very next tick -- no separate
+    // timer or manual re-render trigger is needed.
     const intervalId = setInterval(() => setNow(Date.now()), 1000);
     onCleanup(() => clearInterval(intervalId));
   });
@@ -25,13 +30,22 @@ export default function NoteCard(props) {
   });
   const remaining = createMemo(() => formatRemaining(nextUtc(), now()));
 
-  // null when there's no next occurrence (the rule has ended), so the
-  // bar just hides. Progress runs from dtstart ("Base", the reference
-  // date the user resets each cycle) to the next occurrence.
+  // Bounds of the current cycle (previous occurrence -> next occurrence).
+  // Recomputed every tick of `now` (and whenever the note itself changes,
+  // e.g. via the shift buttons), so once `now` crosses the cycle's end
+  // this naturally flips to the following cycle -- the bar returns to
+  // 100% on its own.
+  const cycle = createMemo(() => {
+    now();
+    return currentCycleUtcStrings(props.note.dtstart, props.note.rrule);
+  });
+
+  // Fraction of the current cycle remaining, from 1 (cycle just started)
+  // down to 0 (next occurrence due now).
   const progress = createMemo(() => {
-    const next = nextUtc();
-    return next
-      ? computeProgressFraction(props.note.dtstart, next, now())
+    const c = cycle();
+    return c
+      ? computeCycleRemainingFraction(c.startUtc, c.endUtc, now())
       : null;
   });
 

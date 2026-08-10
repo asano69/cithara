@@ -45,17 +45,17 @@ export function parseUtcMs(utcStr) {
   return Date.UTC(+y, +mo - 1, +d, +h, +mi, +s);
 }
 
-// Returns how far referenceMs has progressed from baseUtc (the note's
-// dtstart, i.e. the "Base" field the user resets each cycle) to nextUtc
-// (the next occurrence), as a fraction from 0 to 1 (clamped). Returns
-// null if either bound is unparsable or the cycle has zero/negative
-// length.
-export function computeProgressFraction(baseUtc, nextUtc, referenceMs) {
-  const baseMs = parseUtcMs(baseUtc);
-  const nextMs = parseUtcMs(nextUtc);
-  if (baseMs === null || nextMs === null || nextMs <= baseMs) return null;
+// Returns how much of the current cycle remains, from startUtc (the
+// occurrence immediately before now) to endUtc (the next occurrence), as
+// a fraction from 1 (cycle just started) down to 0 (next occurrence due
+// now). Returns null if either bound is unparsable or the cycle has
+// zero/negative length.
+export function computeCycleRemainingFraction(startUtc, endUtc, referenceMs) {
+  const startMs = parseUtcMs(startUtc);
+  const endMs = parseUtcMs(endUtc);
+  if (startMs === null || endMs === null || endMs <= startMs) return null;
 
-  const fraction = (referenceMs - baseMs) / (nextMs - baseMs);
+  const fraction = (endMs - referenceMs) / (endMs - startMs);
   return Math.min(1, Math.max(0, fraction));
 }
 
