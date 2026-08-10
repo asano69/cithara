@@ -112,6 +112,12 @@ export default function NoteCard(props) {
             <span>
               Base: {formatNaive(utcToLocal(props.note.dtstart, props.tz))}
             </span>
+            <span>
+              Last:{" "}
+              {props.note.lastNotified
+                ? formatNaive(utcToLocal(props.note.lastNotified, props.tz))
+                : "—"}
+            </span>
           </div>
         </div>
 

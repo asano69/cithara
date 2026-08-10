@@ -223,6 +223,13 @@ func (s *Scheduler) fireDue(entries []entry) []entry {
 
 		s.notify(e.note, targets)
 
+		lastNotified := now.Format("20060102T150405Z")
+		if err := s.db.UpdateNoteLastNotified(e.note.ID, lastNotified); err != nil {
+			logrus.WithError(err).WithField("note", e.note.ID).
+				Error("scheduler: failed to record last-notified timestamp")
+		}
+		e.note.LastNotified = lastNotified
+
 		e.next = e.rule.After(e.next, false)
 		if !e.next.IsZero() {
 			next = append(next, e)

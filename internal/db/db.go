@@ -73,6 +73,11 @@ type Note struct {
 	Dtstart     string
 	RRule       string
 	Priority    int
+	// LastNotified is the canonical UTC "YYYYMMDDTHHMMSSZ" timestamp of the
+	// most recent notification sent for this note, or "" if it has never
+	// been notified. Same format as Dtstart, so the frontend can reuse its
+	// existing UTC/local conversion helpers.
+	LastNotified string
 }
 
 // ListNotes returns every note in the "notes" collection.
@@ -85,15 +90,32 @@ func (d *Database) ListNotes() ([]Note, error) {
 	notes := make([]Note, 0, len(records))
 	for _, r := range records {
 		notes = append(notes, Note{
-			ID:          r.Id,
-			Label:       r.GetString("label"),
-			Description: r.GetString("description"),
-			Dtstart:     r.GetString("dtstart"),
-			RRule:       r.GetString("rrule"),
-			Priority:    priorityOrDefault(r.GetInt("priority")),
+			ID:           r.Id,
+			Label:        r.GetString("label"),
+			Description:  r.GetString("description"),
+			Dtstart:      r.GetString("dtstart"),
+			RRule:        r.GetString("rrule"),
+			Priority:     priorityOrDefault(r.GetInt("priority")),
+			LastNotified: r.GetString("lastNotified"),
 		})
 	}
 	return notes, nil
+}
+
+// UpdateNoteLastNotified records that a notification was just sent for
+// noteID, so NoteCard can show "last notified" without querying
+// notification_history. utcTimestamp must be in the canonical
+// "YYYYMMDDTHHMMSSZ" format (see Note.LastNotified).
+func (d *Database) UpdateNoteLastNotified(noteID, utcTimestamp string) error {
+	record, err := d.app.FindRecordById("notes", noteID)
+	if err != nil {
+		return errs.Newf("find note %s: %v", noteID, err)
+	}
+	record.Set("lastNotified", utcTimestamp)
+	if err := d.app.Save(record); err != nil {
+		return errs.Newf("save note %s: %v", noteID, err)
+	}
+	return nil
 }
 
 // priorityOrDefault treats an unset (zero-value) priority as
