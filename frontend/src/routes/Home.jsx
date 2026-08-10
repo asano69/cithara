@@ -1,11 +1,15 @@
 import { createSignal, createMemo, onMount, onCleanup, createResource, For, Show } from "solid-js";
+import { ToggleGroup } from "@kobalte/core/toggle-group";
 import Undo from "lucide-solid/icons/undo";
 import Redo from "lucide-solid/icons/redo";
+import CalendarClock from "lucide-solid/icons/calendar-clock";
+import CalendarCheck from "lucide-solid/icons/calendar-check";
 import pb from "../lib/pb";
 import { loadTimezone, localToUtc, utcToLocal } from "../lib/tz";
 import { nextOccurrenceUtcString } from "../lib/rrule";
 import { shiftDtstart, setDtstartToday, parseUtcMs } from "../lib/noteSchedule";
 import { pushShift, undoShift, redoShift } from "../lib/shiftHistory";
+import { loadSortMode, saveSortMode } from "../lib/sortMode";
 import NoteCard from "../components/NoteCard";
 
 function HomeContent(props) {
@@ -14,6 +18,7 @@ function HomeContent(props) {
   const [history, setHistory] = createSignal([]);
   const [pointer, setPointer] = createSignal(0);
   const [historyError, setHistoryError] = createSignal("");
+  const [sortMode, setSortMode] = createSignal(props.initialSortMode);
 
   onMount(() => {
     const intervalId = setInterval(() => setNow(Date.now()), 60000);
@@ -26,6 +31,27 @@ function HomeContent(props) {
   };
 
   onMount(loadNotes);
+
+  // The scheduler can update a note's lastNotified server-side (when a
+  // notification fires) while this screen stays open. Subscribing to
+  // PocketBase's realtime updates keeps the local `notes` signal in sync
+  // instead of it going stale until the next explicit reload.
+  onMount(async () => {
+    await pb.collection("notes").subscribe("*", (e) => {
+      if (e.action === "update") {
+        setNotes((prev) =>
+          prev.map((n) => (n.id === e.record.id ? e.record : n)),
+        );
+      } else if (e.action === "delete") {
+        setNotes((prev) => prev.filter((n) => n.id !== e.record.id));
+      } else if (e.action === "create") {
+        setNotes((prev) => [...prev, e.record]);
+      }
+    });
+    onCleanup(() => {
+      pb.collection("notes").unsubscribe("*");
+    });
+  });
 
   const canUndo = () => pointer() > 0;
   const canRedo = () => pointer() < history().length;
@@ -56,21 +82,31 @@ function HomeContent(props) {
     }
   };
 
-  // Always keeps the list ordered by soonest next occurrence, so it stays
-  // correct both after edits and as time passes and "now" ticks forward.
-  // Notes with no more occurrences sort to the end.
+  const handleSortModeChange = (mode) => {
+    setSortMode(mode);
+    saveSortMode(mode);
+  };
+
+  // Keeps the list ordered by soonest next occurrence ("next" mode) or
+  // most recently notified first ("last" mode), so it stays correct both
+  // after edits and as time passes and "now" ticks forward. Notes with no
+  // value for the active mode sort to the end.
   const sortedNotes = createMemo(() => {
     now();
+    const mode = sortMode();
     return [...notes()]
       .map((note) => ({
         note,
-        nextMs: parseUtcMs(nextOccurrenceUtcString(note.dtstart, note.rrule)),
+        sortMs:
+          mode === "last"
+            ? parseUtcMs(note.lastNotified)
+            : parseUtcMs(nextOccurrenceUtcString(note.dtstart, note.rrule)),
       }))
       .sort((a, b) => {
-        if (a.nextMs === null && b.nextMs === null) return 0;
-        if (a.nextMs === null) return 1;
-        if (b.nextMs === null) return -1;
-        return a.nextMs - b.nextMs;
+        if (a.sortMs === null && b.sortMs === null) return 0;
+        if (a.sortMs === null) return 1;
+        if (b.sortMs === null) return -1;
+        return mode === "last" ? b.sortMs - a.sortMs : a.sortMs - b.sortMs;
       })
       .map((entry) => entry.note);
   });
@@ -124,6 +160,26 @@ function HomeContent(props) {
         >
           <Redo class="h-4 w-4" />
         </button>
+        <ToggleGroup
+          value={sortMode()}
+          onChange={(value) => value && handleSortModeChange(value)}
+          class="flex gap-1"
+        >
+          <ToggleGroup.Item
+            value="next"
+            aria-label="Sort by next occurrence"
+            class="btn data-[pressed]:bg-[var(--color-active-bg)] data-[pressed]:border-[var(--color-active-border)]"
+          >
+            <CalendarClock class="h-4 w-4" />
+          </ToggleGroup.Item>
+          <ToggleGroup.Item
+            value="last"
+            aria-label="Sort by last notified"
+            class="btn data-[pressed]:bg-[var(--color-active-bg)] data-[pressed]:border-[var(--color-active-border)]"
+          >
+            <CalendarCheck class="h-4 w-4" />
+          </ToggleGroup.Item>
+        </ToggleGroup>
         {historyError() && (
           <p class="text-sm text-[#dc3545]">{historyError()}</p>
         )}
@@ -148,9 +204,10 @@ function HomeContent(props) {
 // conversion as a plain synchronous function.
 export default function Home() {
   const [tz] = createResource(loadTimezone);
+  const [initialSortMode] = createResource(loadSortMode);
   return (
-    <Show when={tz()}>
-      <HomeContent tz={tz()} />
+    <Show when={tz() && initialSortMode()}>
+      <HomeContent tz={tz()} initialSortMode={initialSortMode()} />
     </Show>
   );
 }
