@@ -24,7 +24,7 @@
   --color-active-border: #666666;
   --color-shadow: #cccccc;
   /* ---custom ---*/
-  --color-progress: palegreen;
+  --color-progress: #999999;
   --color-muted: #e5e5e5;
 }
 
@@ -44,7 +44,7 @@
     --color-active-border: #777777;
     --color-shadow: #111111;
     /* ---custom ---*/
-    --color-progress: #2a6e2a;
+    --color-progress: #999999;
     --color-muted: #202020;
   }
 }
