@@ -17,18 +17,24 @@ import (
 
 const requestTimeout = 10 * time.Second
 
+// defaultTestPriority is used for the connection-test message sent from
+// Settings, which has no associated note to read a priority from.
+const defaultTestPriority = 4
+
 // Message is the notification content delivered to a provider.
 type Message struct {
-	Title string
-	Body  string
+	Title    string
+	Body     string
+	Priority int
 }
 
 // TestGotify sends a harmless test message to a Gotify server, verifying
 // both the endpoint URL and the app token are correct.
 func TestGotify(endpoint, token string) error {
 	return SendGotify(endpoint, token, Message{
-		Title: "Cithara",
-		Body:  "Test notification from Cithara settings.",
+		Title:    "Cithara",
+		Body:     "Test notification from Cithara settings.",
+		Priority: defaultTestPriority,
 	})
 }
 
@@ -50,7 +56,7 @@ func SendGotify(endpoint, token string, msg Message) error {
 	body, err := json.Marshal(map[string]any{
 		"title":    msg.Title,
 		"message":  msg.Body,
-		"priority": 4,
+		"priority": msg.Priority,
 	})
 	if err != nil {
 		return errs.Newf("build request: %v", err)

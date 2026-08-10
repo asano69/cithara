@@ -251,8 +251,9 @@ func buildMessageBody(note db.Note) string {
 // doesn't stop the others from receiving it.
 func (s *Scheduler) notify(note db.Note, targets []db.NotificationTarget) {
 	msg := notify.Message{
-		Title: buildMessageTitle(note),
-		Body:  buildMessageBody(note),
+		Title:    buildMessageTitle(note),
+		Body:     buildMessageBody(note),
+		Priority: note.Priority,
 	}
 
 	for _, t := range targets {

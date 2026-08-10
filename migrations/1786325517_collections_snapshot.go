@@ -894,6 +894,19 @@ func init() {
 						"type": "text"
 					},
 					{
+						"help": "",
+						"hidden": false,
+						"id": "number1655102503",
+						"max": null,
+						"min": null,
+						"name": "priority",
+						"onlyInt": false,
+						"presentable": false,
+						"required": false,
+						"system": false,
+						"type": "number"
+					},
+					{
 						"hidden": false,
 						"id": "autodate2990389176",
 						"name": "created",

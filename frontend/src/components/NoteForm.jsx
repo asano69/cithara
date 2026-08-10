@@ -76,6 +76,9 @@ function NoteFormFields(props) {
   const [time, setTime] = createSignal(
     extractTime(utcToLocal(props.note?.dtstart, props.tz)),
   );
+  // Gotify priority, 0-10. Existing notes with no stored priority default
+  // to 4, matching the backend's fallback (see db.priorityOrDefault).
+  const [priority, setPriority] = createSignal(props.note?.priority ?? 4);
   const [pending, setPending] = createSignal(false);
   const [deleting, setDeleting] = createSignal(false);
   const [error, setError] = createSignal("");
@@ -97,6 +100,7 @@ function NoteFormFields(props) {
         description: description(),
         dtstart: toDtstartString(store.startDate(), time(), props.tz),
         rrule: extractRRuleLine(store.rruleString()),
+        priority: priority(),
       };
       if (props.note) {
         await pb.collection("notes").update(props.note.id, data);
@@ -174,6 +178,19 @@ function NoteFormFields(props) {
           onInput={(e) => setTime(e.target.value)}
           required
           class="w-32 rounded-md border border-[var(--color-border-soft)] bg-[var(--color-bg)] px-2 py-1 text-[var(--color-text)]"
+        />
+      </label>
+
+      <label class="flex flex-col gap-1 text-sm">
+        <span>Notification priority: {priority()}</span>
+        <input
+          type="range"
+          min="0"
+          max="10"
+          step="1"
+          value={priority()}
+          onInput={(e) => setPriority(Number(e.target.value))}
+          class="w-full"
         />
       </label>
 

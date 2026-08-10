@@ -56,6 +56,11 @@ func newDatabase(app *pocketbase.PocketBase) (*Database, error) {
 	return db, nil
 }
 
+// defaultGotifyPriority is used for notes that predate the "priority"
+// field (or otherwise leave it unset), so the notification priority for
+// old data stays the same as it always was.
+const defaultGotifyPriority = 4
+
 // Note is a snapshot of a "notes" record's scheduling-relevant fields.
 // Dtstart and RRule are stored exactly as the frontend writes them: a
 // floating (timezone-less) "YYYYMMDDTHHMMSS" string and a bare RRULE value
@@ -66,6 +71,7 @@ type Note struct {
 	Description string
 	Dtstart     string
 	RRule       string
+	Priority    int
 }
 
 // ListNotes returns every note in the "notes" collection.
@@ -83,9 +89,20 @@ func (d *Database) ListNotes() ([]Note, error) {
 			Description: r.GetString("description"),
 			Dtstart:     r.GetString("dtstart"),
 			RRule:       r.GetString("rrule"),
+			Priority:    priorityOrDefault(r.GetInt("priority")),
 		})
 	}
 	return notes, nil
+}
+
+// priorityOrDefault treats an unset (zero-value) priority as
+// defaultGotifyPriority, so notes saved before the "priority" field
+// existed keep their historical behavior.
+func priorityOrDefault(priority int) int {
+	if priority == 0 {
+		return defaultGotifyPriority
+	}
+	return priority
 }
 
 // NotificationTarget is a snapshot of a "notifications" record's
