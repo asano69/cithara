@@ -4,19 +4,11 @@
 
 import { createSignal } from "solid-js";
 import RRuleBuilder from "../components/RRuleBuilder/RRuleBuilder";
-import { BuilderStoreProvider, useBuilderStoreContext } from "../lib/rrule";
+import { BuilderStoreProvider } from "../lib/rrule";
 
-// Small helper component so it can read the RRULE string from the same
-// store the builder writes to, without prop-drilling from the page level.
-function RRulePreview() {
-  const store = useBuilderStoreContext();
-  return (
-    <pre class="w-full overflow-x-auto rounded-md border border-[var(--color-border-soft)] bg-[var(--color-panel)] p-4 text-sm text-[var(--color-text)]">
-      {store.rruleString() ?? "(no rule yet)"}
-    </pre>
-  );
-}
-
+// RRuleBuilder now has its own editable "RRULE string" field (see
+// RRuleBuilder.jsx), so a separate read-only preview here would just
+// duplicate that display.
 export default function RRuleTest() {
   const [lastChange, setLastChange] = createSignal("");
 
@@ -26,7 +18,6 @@ export default function RRuleTest() {
 
       <BuilderStoreProvider>
         <RRuleBuilder onChange={setLastChange} enableYearlyInterval />
-        <RRulePreview />
       </BuilderStoreProvider>
 
       <div class="text-sm text-[var(--color-border-soft)]">
